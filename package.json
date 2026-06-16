@@ -1,0 +1,22 @@
+{
+  "name": "@my-project/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "my-project": "./src/index.js"
+  },
+  "scripts": {
+    "cli": "node src/index.js",
+    "test": "node --test tests"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "commander": "^12.1.0",
+    "ora": "^8.1.1"
+  },
+  "packageManager": "pnpm@10.24.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
