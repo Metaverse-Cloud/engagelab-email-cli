@@ -1,2 +1,14 @@
 node_modules/
 .pnpm-store/
+dist/
+docs/
+.npm-package/
+*.tgz
+*.md
+!README.md
+
+# Local environment files may contain API keys.
+.env
+.env.*
+!.env.example
+!.env.*.example
