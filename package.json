@@ -1,6 +1,6 @@
 {
   "name": "engagelab-email-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI for EngageLab Email Agent and Skill workflows",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -52,5 +52,3 @@
     "esbuild": "^0.28.1"
   }
 }
-
-
