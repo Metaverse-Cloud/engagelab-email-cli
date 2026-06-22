@@ -61,23 +61,36 @@ function apiCommandScenarios() {
   return [
     {
       name: 'threads list',
-      args: ['threads', 'list', '--mailbox-id', '12', '--status', '0', '--page-no', '1', '--page-size', '20'],
+      args: [
+        'threads',
+        'list',
+        '--mailbox-id',
+        '12',
+        '--subject',
+        'Hello',
+        '--participant',
+        'user@example.com',
+        '--page-no',
+        '1',
+        '--page-size',
+        '20',
+      ],
       method: 'GET',
-      path: '/v1/thread?mailboxId=12&status=0&pageNo=1&pageSize=20',
+      path: '/v1/thread/list?mailboxId=12&subject=Hello&participant=user%40example.com&pageNo=1&pageSize=20',
       output: /Thread ID/,
     },
     {
       name: 'threads get',
       args: ['threads', 'get', 'thread-1'],
       method: 'GET',
-      path: '/v1/thread/thread-1',
+      path: '/v1/thread/get?threadId=thread-1',
       output: /thread-1/,
     },
     {
       name: 'threads messages',
       args: ['threads', 'messages', 'thread-1', '--limit', '2', '--include-content'],
       method: 'GET',
-      path: '/v1/thread/thread-1/messages?limit=2&includeContent=true',
+      path: '/v1/thread/messages?threadId=thread-1&limit=2&includeContent=true',
       output: /Message UID/,
     },
     {
@@ -106,44 +119,30 @@ function apiCommandScenarios() {
     },
     {
       name: 'emails receiving list',
-      args: ['emails', 'receiving', 'list', '--mailbox-id', '12', '--status', '0', '--page-no', '1'],
+      args: ['emails', 'receiving', 'list', '--mailbox-id', '12', '--keyword', 'Hello', '--page-no', '1'],
       method: 'GET',
-      path: '/v1/message?mailboxId=12&status=0&pageNo=1',
+      path: '/v1/message/list?mailboxId=12&keyword=Hello&pageNo=1',
       output: /Message UID/,
     },
     {
       name: 'emails receiving get',
       args: ['emails', 'receiving', 'get', 'msg-1'],
       method: 'GET',
-      path: '/v1/message/msg-1',
+      path: '/v1/message/get?messageUid=msg-1',
       output: /msg-1/,
     },
     {
       name: 'emails receiving listen',
-      args: ['emails', 'receiving', 'listen', '--mailbox-id', '12', '--limit', '1', '--timeout-seconds', '0'],
+      args: ['emails', 'receiving', 'listen', '--after', '1500', '--limit', '1'],
       method: 'GET',
-      path: '/v1/message/listen?mailboxId=12&limit=1&timeoutSeconds=0',
+      path: '/v1/message/listen?after=1500&limit=1',
       output: /Message UID/,
-    },
-    {
-      name: 'emails receiving ack',
-      args: ['emails', 'receiving', 'ack', 'msg-1'],
-      method: 'POST',
-      path: '/v1/message/msg-1/ack',
-      output: /msg-1/,
-    },
-    {
-      name: 'emails receiving fail',
-      args: ['emails', 'receiving', 'fail', 'msg-1'],
-      method: 'POST',
-      path: '/v1/message/msg-1/fail',
-      output: /msg-1/,
     },
     {
       name: 'emails receiving reply',
       args: ['emails', 'receiving', 'reply', 'msg-1', '--subject', 'Re: Hello', '--text', 'Thanks'],
       method: 'POST',
-      path: '/v1/message/msg-1/reply',
+      path: '/v1/message/reply?messageUid=msg-1',
       body: {
         subject: 'Re: Hello',
         text: 'Thanks',
@@ -195,22 +194,22 @@ function responseFor(method, url) {
   if (method === 'POST' && url === '/v1/mail/send') {
     return ok({ messageUid: 'msg-sent', requestId: 'req-1' });
   }
-  if (method === 'POST' && url.endsWith('/reply')) {
+  if (method === 'POST' && url.startsWith('/v1/message/reply?')) {
     return ok({ messageUid: 'msg-reply', requestId: 'req-2' });
   }
-  if (url.startsWith('/v1/thread') && url.endsWith('/messages?limit=2&includeContent=true')) {
+  if (url.startsWith('/v1/thread/messages?')) {
     return ok({ list: [{ messageUid: 'msg-1', threadId: 'thread-1', subject: 'Hello' }] });
   }
-  if (url.startsWith('/v1/thread?')) {
+  if (url.startsWith('/v1/thread/list?')) {
     return ok({ list: [{ threadId: 'thread-1', subject: 'Hello', messageCount: 1 }] });
   }
-  if (url === '/v1/thread/thread-1') {
+  if (url === '/v1/thread/get?threadId=thread-1') {
     return ok({ threadId: 'thread-1', subject: 'Hello' });
   }
-  if (url.startsWith('/v1/message?') || url.startsWith('/v1/message/listen?')) {
+  if (url.startsWith('/v1/message/list?') || url.startsWith('/v1/message/listen?')) {
     return ok({ list: [{ messageUid: 'msg-1', threadId: 'thread-1', subject: 'Hello' }] });
   }
-  if (url === '/v1/message/msg-1' || url === '/v1/message/msg-1/ack' || url === '/v1/message/msg-1/fail') {
+  if (url === '/v1/message/get?messageUid=msg-1') {
     return ok({ messageUid: 'msg-1', threadId: 'thread-1', subject: 'Hello' });
   }
   return {

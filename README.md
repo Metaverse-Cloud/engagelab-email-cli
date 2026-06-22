@@ -86,7 +86,7 @@ This avoids shell quoting issues with long text, HTML, arrays, and newlines.
 ```bash
 engagelab-email-cli threads list \
   --mailbox-id 1001 \
-  --keyword refund \
+  --subject refund \
   --participant alice@example.com \
   --page-no 1 \
   --page-size 20
@@ -104,23 +104,15 @@ engagelab-email-cli threads messages <thread-id> \
 ```bash
 engagelab-email-cli emails receiving list \
   --mailbox-id 1001 \
-  --status 2 \
-  --agent-consume-status 0 \
   --keyword refund \
   --json
 
 engagelab-email-cli emails receiving get <message-uid> --json
 
 engagelab-email-cli emails receiving listen \
-  --mailbox-id 1001 \
-  --limit 1 \
-  --timeout-seconds 30 \
-  --interval-millis 1000 \
-  --claim-ttl-seconds 300 \
+  --after 1500 \
+  --limit 10 \
   --json
-
-engagelab-email-cli emails receiving ack <message-uid> --json
-engagelab-email-cli emails receiving fail <message-uid> --json
 ```
 
 ## Reply
@@ -204,17 +196,3 @@ engagelab-email-cli emails send --body-file send.json --json
 | `4` | State conflict |
 | `5` | Server, network, invalid JSON, or unknown request failure |
 
-## Project Layout
-
-```text
-src/
-  index.js
-  commands/
-  config/
-  core/
-  output/
-  services/
-tests/
-```
-
-`core/` and `services/` contain no terminal output concerns. Command modules own CLI parsing and terminal behavior.

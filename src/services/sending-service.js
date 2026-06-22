@@ -6,6 +6,6 @@ export class SendingService {
   }
 
   sendEmail(body) {
-    return this.client.post('v1/mail/send', { json: body }).then(readResultResponse);
+    return this.client.post('/v1/mail/send', { json: body }).then(readResultResponse);
   }
 }

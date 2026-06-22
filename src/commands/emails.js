@@ -57,8 +57,6 @@ function registerReceiving(emails) {
     .command('list')
     .description('List inbound messages')
     .option('--mailbox-id <id>', 'Filter by mailbox ID', parsePositiveInteger)
-    .option('--status <number>', 'Message status', parseNonNegativeInteger)
-    .option('--agent-consume-status <number>', 'Agent consume status', parseNonNegativeInteger)
     .option('--keyword <text>', 'Search keyword')
     .option('--page-no <number>', 'Page number', parsePositiveInteger)
     .option('--page-size <number>', 'Page size', parsePositiveInteger)
@@ -68,8 +66,6 @@ function registerReceiving(emails) {
       const result = await service.listMessages(
         queryFromOptions(options, {
           mailboxId: 'mailboxId',
-          status: 'status',
-          agentConsumeStatus: 'agentConsumeStatus',
           keyword: 'keyword',
           pageNo: 'pageNo',
           pageSize: 'pageSize',
@@ -91,47 +87,19 @@ function registerReceiving(emails) {
 
   receiving
     .command('listen')
-    .description('Long-poll and claim messages for Agent processing')
-    .option('--mailbox-id <id>', 'Filter by mailbox ID', parsePositiveInteger)
+    .description('Poll new inbound messages for Agent processing')
+    .option('--after <id>', 'Cursor ID from the previous result', parseNonNegativeInteger)
     .option('--limit <number>', 'Message limit', parsePositiveInteger)
-    .option('--timeout-seconds <number>', 'Long poll timeout seconds', parseNonNegativeInteger)
-    .option('--interval-millis <number>', 'Poll interval milliseconds', parsePositiveInteger)
-    .option('--claim-ttl-seconds <number>', 'Claim TTL seconds', parsePositiveInteger)
     .option('--json', 'Output raw JSON')
     .action(async (options, command) => {
       const service = new ReceivingService(await createApiClient(command));
       const result = await service.listenMessages(
         queryFromOptions(options, {
-          mailboxId: 'mailboxId',
+          after: 'after',
           limit: 'limit',
-          timeoutSeconds: 'timeoutSeconds',
-          intervalMillis: 'intervalMillis',
-          claimTtlSeconds: 'claimTtlSeconds',
         }),
       );
       writeResult(command, result, formatMessageList);
-    });
-
-  receiving
-    .command('ack')
-    .description('Mark a claimed message as consumed')
-    .argument('<message-uid>', 'Message UID')
-    .option('--json', 'Output raw JSON')
-    .action(async (messageUid, options, command) => {
-      requireValue(messageUid, 'Message UID is required');
-      const service = new ReceivingService(await createApiClient(command));
-      writeResult(command, await service.ackMessage(messageUid), formatDetail);
-    });
-
-  receiving
-    .command('fail')
-    .description('Mark a claimed message as failed')
-    .argument('<message-uid>', 'Message UID')
-    .option('--json', 'Output raw JSON')
-    .action(async (messageUid, options, command) => {
-      requireValue(messageUid, 'Message UID is required');
-      const service = new ReceivingService(await createApiClient(command));
-      writeResult(command, await service.failMessage(messageUid), formatDetail);
     });
 
   receiving
