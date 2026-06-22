@@ -1,22 +1,47 @@
 {
-  "name": "@my-project/cli",
+  "name": "engagelab-email",
   "version": "0.1.0",
-  "private": true,
+  "description": "CLI for EngageLab Email Agent and Skill workflows",
   "type": "module",
-  "bin": {
-    "my-project": "./src/index.js"
+  "main": "./dist/index.cjs",
+  "exports": {
+    ".": "./dist/index.cjs"
   },
+  "bin": {
+    "engagelab-email": "./dist/index.cjs"
+  },
+  "files": [
+    "dist/"
+  ],
   "scripts": {
-    "cli": "node src/index.js",
-    "test": "node --test tests"
+    "build": "node scripts/build.js",
+    "cli": "node src/cli.js",
+    "test": "node --test --test-reporter=spec tests",
+    "prepare-package": "node scripts/prepare-package.js",
+    "packcheck": "npm test && npm run prepare-package && npm pack --dry-run .npm-package",
+    "publish:npm": "npm test && npm run prepare-package && npm publish .npm-package --access public"
   },
   "dependencies": {
-    "chalk": "^5.4.1",
     "commander": "^12.1.0",
-    "ora": "^8.1.1"
+    "ky": "^2.0.2"
+  },
+  "keywords": [
+    "engagelab",
+    "email",
+    "cli",
+    "agent",
+    "inbox"
+  ],
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "access": "public"
   },
   "packageManager": "pnpm@10.24.0",
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
   }
 }
+

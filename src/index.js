@@ -1,21 +1,38 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { registerMessageCommands } from './commands/messages.js';
+import { registerConfigCommands } from './commands/config.js';
+import { registerEmailsCommands } from './commands/emails.js';
+import { registerThreadsCommands } from './commands/threads.js';
+import { toCliError } from './core/errors.js';
+import { writeJsonError } from './output/json.js';
 
-const program = new Command();
+export function configureProgram(program = new Command()) {
+  program
+    .name('engagelab-email')
+    .description('CLI for EngageLab Email Agent workflows')
+    .version('0.1.0')
+    .option('-u, --base-url <url>', 'EngageLab Email API base URL', process.env.ENGAGELAB_EMAIL_BASE_URL)
+    .option('--secret-key <key>', 'EngageLab Email Secret Key', process.env.ENGAGELAB_EMAIL_SECRET_KEY);
 
-program
-  .name('my-project')
-  .description('CLI for the Java backend email service')
-  .version('0.1.0')
-  .option('-u, --base-url <url>', 'Java backend API base URL', process.env.MY_PROJECT_BASE_URL)
-  .option('-t, --token <token>', 'API bearer token', process.env.MY_PROJECT_TOKEN);
+  registerConfigCommands(program);
+  registerThreadsCommands(program);
+  registerEmailsCommands(program);
 
-registerMessageCommands(program);
+  return program;
+}
 
-program.parseAsync(process.argv).catch((error) => {
-  const message = error?.message || 'Command failed';
-  process.stderr.write(`${message}\n`);
-  process.exitCode = 1;
-});
+export async function run(argv = process.argv) {
+  const program = configureProgram();
+  try {
+    await program.parseAsync(argv);
+  } catch (error) {
+    const cliError = toCliError(error);
+    if (argv.includes('--json')) {
+      writeJsonError(process.stderr, cliError);
+    } else {
+      process.stderr.write(`${cliError.message}\n`);
+    }
+    process.exitCode = cliError.exitCode;
+  }
+}
