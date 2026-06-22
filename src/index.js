@@ -9,7 +9,7 @@ import { writeJsonError } from './output/json.js';
 
 export function configureProgram(program = new Command()) {
   program
-    .name('engagelab-email')
+    .name('engagelab-email-cli')
     .description('CLI for EngageLab Email Agent workflows')
     .version('0.1.0')
     .option('-u, --base-url <url>', 'EngageLab Email API base URL', process.env.ENGAGELAB_EMAIL_BASE_URL)
@@ -36,3 +36,4 @@ export async function run(argv = process.argv) {
     process.exitCode = cliError.exitCode;
   }
 }
+

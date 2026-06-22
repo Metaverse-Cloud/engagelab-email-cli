@@ -40,14 +40,14 @@ npm publish
 Current package name:
 
 ```text
-engagelab-email
+engagelab-email-cli
 ```
 
 ## Configuration
 
 ```bash
-engagelab-email config set --base-url http://localhost:8087 --secret-key sk_xxx
-engagelab-email config list
+engagelab-email-cli config set --base-url http://localhost:8087 --secret-key sk_xxx
+engagelab-email-cli config list
 ```
 
 Runtime config precedence:
@@ -63,10 +63,10 @@ Runtime config precedence:
 For Agent/Skill integrations, prefer JSON input files and JSON output:
 
 ```bash
-engagelab-email emails receiving listen --json
-engagelab-email threads messages <thread-id> --include-content --json
-engagelab-email emails receiving reply <message-uid> --body-file reply.json --json
-engagelab-email emails send --body-file send.json --json
+engagelab-email-cli emails receiving listen --json
+engagelab-email-cli threads messages <thread-id> --include-content --json
+engagelab-email-cli emails receiving reply <message-uid> --body-file reply.json --json
+engagelab-email-cli emails send --body-file send.json --json
 ```
 
 This avoids shell quoting issues with long text, HTML, arrays, and newlines.
@@ -74,16 +74,16 @@ This avoids shell quoting issues with long text, HTML, arrays, and newlines.
 ## Threads
 
 ```bash
-engagelab-email threads list \
+engagelab-email-cli threads list \
   --mailbox-id 1001 \
   --keyword refund \
   --participant alice@example.com \
   --page-no 1 \
   --page-size 20
 
-engagelab-email threads get <thread-id> --json
+engagelab-email-cli threads get <thread-id> --json
 
-engagelab-email threads messages <thread-id> \
+engagelab-email-cli threads messages <thread-id> \
   --limit 50 \
   --include-content \
   --json
@@ -92,16 +92,16 @@ engagelab-email threads messages <thread-id> \
 ## Receiving
 
 ```bash
-engagelab-email emails receiving list \
+engagelab-email-cli emails receiving list \
   --mailbox-id 1001 \
   --status 2 \
   --agent-consume-status 0 \
   --keyword refund \
   --json
 
-engagelab-email emails receiving get <message-uid> --json
+engagelab-email-cli emails receiving get <message-uid> --json
 
-engagelab-email emails receiving listen \
+engagelab-email-cli emails receiving listen \
   --mailbox-id 1001 \
   --limit 1 \
   --timeout-seconds 30 \
@@ -109,8 +109,8 @@ engagelab-email emails receiving listen \
   --claim-ttl-seconds 300 \
   --json
 
-engagelab-email emails receiving ack <message-uid> --json
-engagelab-email emails receiving fail <message-uid> --json
+engagelab-email-cli emails receiving ack <message-uid> --json
+engagelab-email-cli emails receiving fail <message-uid> --json
 ```
 
 ## Reply
@@ -118,15 +118,15 @@ engagelab-email emails receiving fail <message-uid> --json
 Short manual reply:
 
 ```bash
-engagelab-email emails receiving reply <message-uid> \
-  --text "您好，您的邮件已经收到。" \
+engagelab-email-cli emails receiving reply <message-uid> \
+  --text "您好，您的邮件已经收到�? \
   --json
 ```
 
 Skill-friendly reply:
 
 ```bash
-engagelab-email emails receiving reply <message-uid> --body-file reply.json --json
+engagelab-email-cli emails receiving reply <message-uid> --body-file reply.json --json
 ```
 
 `reply.json`:
@@ -134,8 +134,8 @@ engagelab-email emails receiving reply <message-uid> --body-file reply.json --js
 ```json
 {
   "subject": "Re: Refund request",
-  "text": "您好，您的退款申请已经收到。",
-  "html": "<p>您好，您的退款申请已经收到。</p>",
+  "text": "您好，您的退款申请已经收到�?,
+  "html": "<p>您好，您的退款申请已经收到�?/p>",
   "cc": ["ops@example.com"],
   "bcc": []
 }
@@ -146,18 +146,18 @@ engagelab-email emails receiving reply <message-uid> --body-file reply.json --js
 Manual send:
 
 ```bash
-engagelab-email emails send \
+engagelab-email-cli emails send \
   --mailbox-id 1001 \
   --to alice@example.com \
   --subject "Refund update" \
-  --text "您的退款申请已经处理完成。" \
+  --text "您的退款申请已经处理完成�? \
   --json
 ```
 
 Skill-friendly send:
 
 ```bash
-engagelab-email emails send --body-file send.json --json
+engagelab-email-cli emails send --body-file send.json --json
 ```
 
 `send.json`:
@@ -167,8 +167,8 @@ engagelab-email emails send --body-file send.json --json
   "mailboxId": 1001,
   "to": ["alice@example.com"],
   "subject": "Refund update",
-  "text": "您的退款申请已经处理完成。",
-  "html": "<p>您的退款申请已经处理完成。</p>",
+  "text": "您的退款申请已经处理完成�?,
+  "html": "<p>您的退款申请已经处理完成�?/p>",
   "cc": [],
   "bcc": []
 }
@@ -208,3 +208,4 @@ tests/
 ```
 
 `core/` and `services/` contain no terminal output concerns. Command modules own CLI parsing and terminal behavior.
+

@@ -1,6 +1,6 @@
 {
-  "name": "engagelab-email",
-  "version": "0.1.0",
+  "name": "engagelab-email-cli",
+  "version": "1.0.0",
   "description": "CLI for EngageLab Email Agent and Skill workflows",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -8,7 +8,7 @@
     ".": "./dist/index.cjs"
   },
   "bin": {
-    "engagelab-email": "./dist/index.cjs"
+    "engagelab-email-cli": "./dist/index.cjs"
   },
   "files": [
     "dist/"
@@ -32,6 +32,14 @@
     "agent",
     "inbox"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Metaverse-Cloud/engagelab-email-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Metaverse-Cloud/engagelab-email-cli/issues"
+  },
+  "homepage": "https://github.com/Metaverse-Cloud/engagelab-email-cli#readme",
   "license": "UNLICENSED",
   "publishConfig": {
     "access": "public"
@@ -44,4 +52,5 @@
     "esbuild": "^0.28.1"
   }
 }
+
 

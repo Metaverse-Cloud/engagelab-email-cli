@@ -25,10 +25,11 @@ export function getDefaultConfigPath(env = process.env, platform = process.platf
   const base =
     env.XDG_CONFIG_HOME ||
     (platform === 'win32' ? env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming') : path.join(os.homedir(), '.config'));
-  return path.join(base, 'engagelab-email', 'config.json');
+  return path.join(base, 'engagelab-email-cli', 'config.json');
 }
 
 export function maskSecretKey(secretKey) {
   if (!secretKey) return '';
   return `${secretKey.slice(0, 7)}****`;
 }
+

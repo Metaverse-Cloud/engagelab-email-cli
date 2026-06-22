@@ -11,7 +11,7 @@ const execFileAsync = promisify(execFile);
 
 describe('CLI command smoke tests', () => {
   it('runs config set and list without touching the API', async () => {
-    const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-config-${Date.now()}`), {
+    const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-config-${Date.now()}`), {
       recursive: true,
     });
     const env = { ...process.env, ENGAGELAB_EMAIL_CONFIG: path.join(dir, 'config.json') };
@@ -262,3 +262,4 @@ function maskSecretArgs(args) {
 function formatArg(value) {
   return /\s|<|>/.test(value) ? JSON.stringify(value) : value;
 }
+
