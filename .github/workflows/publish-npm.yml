@@ -11,7 +11,6 @@ jobs:
 
     permissions:
       contents: read
-      id-token: write
 
     steps:
       - name: Checkout
@@ -36,6 +35,6 @@ jobs:
         run: npm run prepare-package
 
       - name: Publish to npm
-        run: npm publish .npm-package --access public --provenance
+        run: npm publish .npm-package --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
