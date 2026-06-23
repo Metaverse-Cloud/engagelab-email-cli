@@ -6,12 +6,13 @@ import { registerEmailsCommands } from './commands/emails.js';
 import { registerThreadsCommands } from './commands/threads.js';
 import { toCliError } from './core/errors.js';
 import { writeJsonError } from './output/json.js';
+import { CLI_VERSION } from './version.js';
 
 export function configureProgram(program = new Command()) {
   program
     .name('engagelab-email-cli')
     .description('CLI for EngageLab Email Agent workflows')
-    .version('0.1.0')
+    .version(CLI_VERSION)
     .option('-u, --base-url <url>', 'EngageLab Email API base URL', process.env.ENGAGELAB_EMAIL_BASE_URL)
     .option('--secret-key <key>', 'EngageLab Email Secret Key', process.env.ENGAGELAB_EMAIL_SECRET_KEY);
 

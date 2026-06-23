@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -10,6 +10,14 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 describe('CLI command smoke tests', () => {
+  it('prints the package version with -V', async () => {
+    const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
+    const result = await runCli(['-V']);
+    logCliResult(result);
+
+    assert.equal(result.stdout.trim(), packageJson.version);
+  });
+
   it('runs config set and list without touching the API', async () => {
     const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-config-${Date.now()}`), {
       recursive: true,
