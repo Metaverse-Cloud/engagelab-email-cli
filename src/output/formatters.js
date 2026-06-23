@@ -1,3 +1,4 @@
+import pc from 'picocolors';
 import { renderTable } from './table.js';
 import { formatAgentConsumeStatus, formatMessageStatus } from './status.js';
 
@@ -31,7 +32,7 @@ export function formatDetail(result) {
 export function formatSendResult(result) {
   const data = result.data || {};
   return [
-    'Sent',
+    `${pc.green('✓')} Sent`,
     data.messageUid ? `messageUid: ${data.messageUid}` : null,
     data.requestId ? `requestId: ${data.requestId}` : null,
     data.emailIds ? `emailIds: ${data.emailIds.join(', ')}` : null,

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdir, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -55,6 +55,48 @@ describe('CLI command smoke tests', () => {
       });
     });
   }
+
+  it('polls emails receiving listen and advances the cursor', async () => {
+    await withApiServer(async ({ baseUrl, requests }) => {
+      const child = spawn(
+        process.execPath,
+        [
+          'src/cli.js',
+          '--base-url',
+          baseUrl,
+          '--secret-key',
+          'sk_smoke',
+          'emails',
+          'receiving',
+          'listen',
+          '--limit',
+          '1',
+          '--interval',
+          '2',
+          '--json',
+        ],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+
+      const output = collectChildOutput(child);
+      try {
+        await waitFor(() => requests.length >= 2, 5000);
+        child.kill();
+        await waitForExit(child);
+
+        assert.equal(requests[0].method, 'GET');
+        assert.equal(requests[0].path, '/v1/message/listen?limit=1');
+        assert.equal(requests[1].method, 'GET');
+        assert.equal(requests[1].path, '/v1/message/listen?after=1500&limit=1');
+        assert.equal(requests[0].authorization, 'Bearer sk_smoke');
+        assert.equal(requests[1].authorization, 'Bearer sk_smoke');
+        assert.doesNotMatch(output.stdout, /msg-1/);
+        assert.match(output.stdout, /msg-2/);
+      } finally {
+        if (!child.killed) child.kill();
+      }
+    });
+  });
 });
 
 function apiCommandScenarios() {
@@ -132,13 +174,6 @@ function apiCommandScenarios() {
       output: /msg-1/,
     },
     {
-      name: 'emails receiving listen',
-      args: ['emails', 'receiving', 'listen', '--after', '1500', '--limit', '1'],
-      method: 'GET',
-      path: '/v1/message/listen?after=1500&limit=1',
-      output: /Message UID/,
-    },
-    {
       name: 'emails receiving reply',
       args: ['emails', 'receiving', 'reply', 'msg-1', '--subject', 'Re: Hello', '--text', 'Thanks'],
       method: 'POST',
@@ -206,6 +241,12 @@ function responseFor(method, url) {
   if (url === '/v1/thread/get?threadId=thread-1') {
     return ok({ threadId: 'thread-1', subject: 'Hello' });
   }
+  if (url === '/v1/message/listen?limit=1') {
+    return ok([{ id: 1500, messageUid: 'msg-1', threadId: 'thread-1', subject: 'Seed' }]);
+  }
+  if (url === '/v1/message/listen?after=1500&limit=1') {
+    return ok([{ id: 1501, messageUid: 'msg-2', threadId: 'thread-1', subject: 'New' }]);
+  }
   if (url.startsWith('/v1/message/list?') || url.startsWith('/v1/message/listen?')) {
     return ok({ list: [{ messageUid: 'msg-1', threadId: 'thread-1', subject: 'Hello' }] });
   }
@@ -260,5 +301,39 @@ function maskSecretArgs(args) {
 
 function formatArg(value) {
   return /\s|<|>/.test(value) ? JSON.stringify(value) : value;
+}
+
+function collectChildOutput(child) {
+  const output = { stdout: '', stderr: '' };
+  child.stdout.on('data', (chunk) => {
+    output.stdout += chunk.toString('utf8');
+  });
+  child.stderr.on('data', (chunk) => {
+    output.stderr += chunk.toString('utf8');
+  });
+  return output;
+}
+
+function waitFor(predicate, timeoutMs) {
+  const startedAt = Date.now();
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      if (predicate()) {
+        resolve();
+        return;
+      }
+      if (Date.now() - startedAt > timeoutMs) {
+        reject(new Error('Timed out waiting for condition'));
+        return;
+      }
+      setTimeout(tick, 25);
+    };
+    tick();
+  });
+}
+
+function waitForExit(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise((resolve) => child.once('exit', resolve));
 }
 

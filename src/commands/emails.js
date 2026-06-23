@@ -1,4 +1,5 @@
 import { resolveRequestBody } from '../core/request-body.js';
+import pc from 'picocolors';
 import { collect, parseNonNegativeInteger, parsePositiveInteger, requireValue } from '../core/validators.js';
 import { formatDetail, formatMessageList, formatSendResult } from '../output/formatters.js';
 import { ReceivingService } from '../services/receiving-service.js';
@@ -19,6 +20,10 @@ const bodyFieldNames = [
   'cc',
   'bcc',
 ];
+const DEFAULT_LISTEN_LIMIT = 10;
+const DEFAULT_LISTEN_INTERVAL_SECONDS = 5;
+const MIN_LISTEN_INTERVAL_SECONDS = 2;
+const MAX_CONSECUTIVE_LISTEN_ERRORS = 5;
 
 export function registerEmailsCommands(program) {
   const emails = program.command('emails').description('Work with email messages');
@@ -90,16 +95,11 @@ function registerReceiving(emails) {
     .description('Poll new inbound messages for Agent processing')
     .option('--after <id>', 'Cursor ID from the previous result', parseNonNegativeInteger)
     .option('--limit <number>', 'Message limit', parsePositiveInteger)
+    .option('--interval <seconds>', 'Polling interval in seconds (minimum 2)', parsePositiveInteger)
     .option('--json', 'Output raw JSON')
     .action(async (options, command) => {
       const service = new ReceivingService(await createApiClient(command));
-      const result = await service.listenMessages(
-        queryFromOptions(options, {
-          after: 'after',
-          limit: 'limit',
-        }),
-      );
-      writeResult(command, result, formatMessageList);
+      await listenForMessages(service, options, command);
     });
 
   receiving
@@ -142,4 +142,165 @@ function validateTextOrHtml(body) {
   if (!body.text && !body.html) {
     throw validationError('At least one of text or html is required');
   }
+}
+
+async function listenForMessages(service, options, command) {
+  const stdout = process.stdout;
+  const stderr = process.stderr;
+  const jsonMode = Boolean(options.json);
+  const limit = options.limit ?? DEFAULT_LISTEN_LIMIT;
+  const interval = options.interval ?? DEFAULT_LISTEN_INTERVAL_SECONDS;
+  validateListenInterval(interval);
+
+  let cursor = options.after;
+  let consecutiveErrors = 0;
+  let timeoutHandle;
+  let stopped = false;
+
+  const stop = () => {
+    stopped = true;
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+    if (!jsonMode) stderr.write('\nStopped listening.\n');
+    process.exit(130);
+  };
+
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
+
+  if (!jsonMode) {
+    stderr.write(`${pc.dim('Connecting...')}\n`);
+  }
+
+  if (cursor === undefined) {
+    const seed = await service.listenMessages({ limit: 1 });
+    cursor = cursorFromMessages(extractMessages(seed));
+  }
+
+  if (!jsonMode) {
+    stderr.write(`${pc.green('✓')} Ready\n\n`);
+    stderr.write(`${pc.bold('Polling:')} every ${interval}s\n`);
+    stderr.write('Listening for new inbound emails. Press Ctrl+C to stop.\n\n');
+  }
+
+  const poll = async () => {
+    if (stopped) return;
+
+    try {
+      const query = cursor === undefined ? { limit } : { after: cursor, limit };
+      const result = await service.listenMessages(query);
+      const messages = extractMessages(result);
+
+      if (messages.length > 0) {
+        cursor = cursorFromMessages(messages) ?? cursor;
+        writeListenMessages(stdout, messages, jsonMode);
+      }
+
+      consecutiveErrors = 0;
+    } catch (error) {
+      consecutiveErrors += 1;
+      const message = error instanceof Error ? error.message : String(error);
+      if (jsonMode) {
+        stderr.write(`${JSON.stringify({ error: { code: 'poll_error', message } })}\n`);
+      } else {
+        stderr.write(`${pc.dim(`[${timestamp()}]`)} ${pc.yellow('Warning:')} ${message}\n`);
+      }
+
+      if (consecutiveErrors >= MAX_CONSECUTIVE_LISTEN_ERRORS) {
+        throw validationError('Exiting after 5 consecutive API failures.');
+      }
+    } finally {
+      if (!stopped) {
+        timeoutHandle = setTimeout(() => {
+          poll().catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            stderr.write(`${message}\n`);
+            process.exit(5);
+          });
+        }, interval * 1000);
+      }
+    }
+  };
+
+  timeoutHandle = setTimeout(() => {
+    poll().catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      stderr.write(`${message}\n`);
+      process.exit(5);
+    });
+  }, interval * 1000);
+
+  await new Promise(() => {});
+}
+
+function validateListenInterval(interval) {
+  if (!Number.isInteger(interval) || interval < MIN_LISTEN_INTERVAL_SECONDS) {
+    throw validationError('Polling interval must be at least 2 seconds.');
+  }
+}
+
+function extractMessages(result) {
+  if (Array.isArray(result.data)) return result.data;
+  if (Array.isArray(result.data?.list)) return result.data.list;
+  return [];
+}
+
+function cursorFromMessages(messages) {
+  const cursorValues = messages.map(cursorFromMessage).filter((value) => value !== undefined);
+  if (cursorValues.length === 0) return undefined;
+
+  const numericValues = cursorValues.map(Number).filter(Number.isFinite);
+  if (numericValues.length === cursorValues.length) {
+    return Math.max(...numericValues);
+  }
+
+  return cursorValues.at(-1);
+}
+
+function cursorFromMessage(message) {
+  return message.id ?? message.messageId ?? message.messageUid;
+}
+
+function writeListenMessages(stdout, messages, jsonMode) {
+  if (jsonMode) {
+    for (const message of messages) {
+      stdout.write(`${JSON.stringify(message)}\n`);
+    }
+    return;
+  }
+
+  for (const message of messages) {
+    stdout.write(`${formatListenMessage(message)}\n`);
+  }
+}
+
+function timestamp() {
+  return new Date().toLocaleTimeString('en-GB', { hour12: false });
+}
+
+function formatListenMessage(message) {
+  const from = message.fromEmail || message.envelopeFrom || '(unknown sender)';
+  const to = formatAddressList(message.to || message.toEmail || message.recipients);
+  const subject = truncate(message.subject || '(no subject)', 60);
+  const id = message.messageUid || message.id || '';
+  const route = to ? `${from} -> ${to}` : from;
+
+  return [
+    pc.dim(`[${timestamp()}]`),
+    route,
+    pc.bold(`"${subject}"`),
+    id ? pc.dim(String(id)) : null,
+  ]
+    .filter(Boolean)
+    .join('  ');
+}
+
+function formatAddressList(value) {
+  if (Array.isArray(value)) return value.join(', ');
+  return value || '';
+}
+
+function truncate(value, maxLength) {
+  const text = String(value);
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 3)}...`;
 }

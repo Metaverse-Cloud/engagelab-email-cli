@@ -73,13 +73,14 @@ Runtime config precedence:
 For Agent/Skill integrations, prefer JSON input files and JSON output:
 
 ```bash
-engagelab-email-cli emails receiving listen --json
+engagelab-email-cli emails receiving listen --limit 10 --interval 5 --json
 engagelab-email-cli threads messages <thread-id> --include-content --json
 engagelab-email-cli emails receiving reply <message-uid> --body-file reply.json --json
 engagelab-email-cli emails send --body-file send.json --json
 ```
 
-This avoids shell quoting issues with long text, HTML, arrays, and newlines.
+`listen` is a long-running polling command. It prints each new message as it arrives and exits when you press `Ctrl+C`.
+With `--json`, `listen` outputs NDJSON: one JSON object per message line. JSON input files avoid shell quoting issues with long text, HTML, arrays, and newlines.
 
 ## Threads
 
@@ -110,10 +111,23 @@ engagelab-email-cli emails receiving list \
 engagelab-email-cli emails receiving get <message-uid> --json
 
 engagelab-email-cli emails receiving listen \
+  --limit 10 \
+  --interval 5 \
+  --json
+
+engagelab-email-cli emails receiving listen \
   --after 1500 \
   --limit 10 \
-  --json
+  --interval 5
 ```
+
+`emails receiving listen` follows the Resend-style CLI polling model:
+
+- It seeds the cursor from the latest message when `--after` is not provided, so historical messages are not printed on startup.
+- It polls `GET /v1/message/listen` every `--interval` seconds; the default is `5`, and the minimum is `2`.
+- It sends `after=<cursor>` on later polls and updates the cursor from the newest returned message.
+- It keeps running until `Ctrl+C` or process termination.
+- In `--json` mode, each new message is printed as one compact JSON line.
 
 ## Reply
 
@@ -195,4 +209,3 @@ engagelab-email-cli emails send --body-file send.json --json
 | `3` | Resource not found |
 | `4` | State conflict |
 | `5` | Server, network, invalid JSON, or unknown request failure |
-

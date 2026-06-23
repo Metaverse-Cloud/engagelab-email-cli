@@ -9,6 +9,7 @@ await buildCli();
 await rm(packageDir, { recursive: true, force: true });
 await mkdir(`${packageDir}/dist`, { recursive: true });
 await cp('dist/index.cjs', `${packageDir}/dist/index.cjs`);
+await cp('README.md', `${packageDir}/README.md`);
 
 const sourcePackage = JSON.parse(await readFile('package.json', 'utf8'));
 const publishPackage = {
