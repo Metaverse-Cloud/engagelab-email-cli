@@ -6,6 +6,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { CLI_VERSION } from '../src/version.js';
 
 const execFileAsync = promisify(execFile);
 let registryVersion = '1.1.1';
@@ -43,8 +44,34 @@ describe('CLI command smoke tests', () => {
     }
   });
 
-  it('keeps inferred baseUrl coverage in dedicated unit tests instead of external smoke calls', () => {
-    assert.ok(true);
+  it('uses the configured baseUrl from local config when only the secret key is provided to the CLI', async () => {
+    const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-config-infer-${Date.now()}`), {
+      recursive: true,
+    });
+    const env = { ...process.env, ENGAGELAB_EMAIL_CONFIG: path.join(dir, 'config.json') };
+
+    try {
+      await withApiServer(async ({ baseUrl, requests }) => {
+        const saved = await runCli(['config', 'set', '--base-url', baseUrl], { env });
+        logCliResult(saved);
+
+        const result = await runCli([
+          '--secret-key',
+          'sk_sg_XDfUt2_RXkCWdOMGk6_GecyhRKOZiKvNtGDQbBbgxtM',
+          'threads',
+          'get',
+          'thread-1',
+        ], { env });
+        logCliResult(result);
+
+        assert.equal(requests.length, 1);
+        assert.equal(requests[0].path, '/api/email/agent/v1/thread/get?threadId=thread-1');
+        assert.equal(requests[0].authorization, 'Bearer sk_sg_XDfUt2_RXkCWdOMGk6_GecyhRKOZiKvNtGDQbBbgxtM');
+        assert.match(result.stdout, /thread-1/);
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('prefers explicit baseUrl over the secret key mapping', async () => {
@@ -277,7 +304,7 @@ describe('CLI command smoke tests', () => {
         const payload = JSON.parse(result.stderr);
         assert.equal(result.code, 1);
         assert.equal(payload.error.code, 'update_required');
-        assert.equal(payload.error.data.currentVersion, '1.2.0');
+        assert.equal(payload.error.data.currentVersion, CLI_VERSION);
         assert.equal(payload.error.data.latestVersion, '999.0.0');
         assert.equal(payload.error.data.updateCommand, 'npm install -g engagelab-email-cli@latest');
         assert.deepEqual(requests.map((request) => request.path), ['/engagelab-email-cli/latest']);

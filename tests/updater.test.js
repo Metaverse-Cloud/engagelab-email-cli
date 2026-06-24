@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Writable } from 'node:stream';
 import { handleOutdatedCli, updateCommandText } from '../src/core/updater.js';
+import { CLI_VERSION } from '../src/version.js';
 
 class MemoryStream extends Writable {
   constructor() {
@@ -25,7 +26,7 @@ describe('CLI updater', () => {
     await assert.rejects(
       handleOutdatedCli({
         packageName: 'engagelab-email-cli',
-        currentVersion: '1.2.0',
+        currentVersion: CLI_VERSION,
         latestVersion: '1.3.0',
         jsonMode: false,
         stdin: { isTTY: true },
@@ -52,7 +53,7 @@ describe('CLI updater', () => {
       args: ['install', '-g', 'engagelab-email-cli@latest'],
       display: 'npm install -g engagelab-email-cli@latest',
     });
-    assert.match(stripAnsi(stderr.output), /A newer version is available: 1\.2\.0 -> 1\.3\.0/);
+    assert.match(stripAnsi(stderr.output), new RegExp(`A newer version is available: ${escapeRegExp(CLI_VERSION)} -> 1\.3\.0`));
     assert.match(stripAnsi(stderr.output), /Press Enter to update automatically, or press Ctrl\+C to cancel/);
     assert.match(stripAnsi(stderr.output), /OK Updated engagelab-email-cli to 1\.3\.0/);
     assert.match(stripAnsi(stderr.output), /Please run your command again/);
@@ -65,7 +66,7 @@ describe('CLI updater', () => {
     await assert.rejects(
       handleOutdatedCli({
         packageName: 'engagelab-email-cli',
-        currentVersion: '1.2.0',
+        currentVersion: CLI_VERSION,
         latestVersion: '1.3.0',
         jsonMode: false,
         stdin: { isTTY: true },
@@ -87,7 +88,7 @@ describe('CLI updater', () => {
     await assert.rejects(
       handleOutdatedCli({
         packageName: 'engagelab-email-cli',
-        currentVersion: '1.2.0',
+        currentVersion: CLI_VERSION,
         latestVersion: '1.3.0',
         jsonMode: true,
         stdin: { isTTY: false },
@@ -95,7 +96,7 @@ describe('CLI updater', () => {
       }),
       (error) => {
         assert.equal(error.code, 'update_required');
-        assert.equal(error.data.currentVersion, '1.2.0');
+        assert.equal(error.data.currentVersion, CLI_VERSION);
         assert.equal(error.data.latestVersion, '1.3.0');
         assert.equal(error.data.updateCommand, updateCommandText('engagelab-email-cli'));
         return true;
@@ -106,4 +107,8 @@ describe('CLI updater', () => {
 
 function stripAnsi(value) {
   return value.replace(/\u001B\[[0-9;]*m/g, '');
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
