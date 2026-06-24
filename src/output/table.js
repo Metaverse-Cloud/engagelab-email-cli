@@ -1,13 +1,13 @@
 import Table from 'cli-table3';
-import pc from 'picocolors';
+import { ui } from './ui.js';
 
 export function renderTable(rows, columns) {
   if (!rows || rows.length === 0) {
-    return pc.dim('No results');
+    return ui.empty('No results');
   }
 
   const table = new Table({
-    head: columns.map((column) => pc.bold(column.header)),
+    head: columns.map((column) => ui.tableHeader(column.header)),
     style: {
       border: [],
       head: [],
@@ -31,12 +31,6 @@ export function renderTable(rows, columns) {
     },
   });
 
-  table.push(...rows.map((row) => columns.map((column) => stringify(column.value(row)))));
+  table.push(...rows.map((row) => columns.map((column, index) => ui.tableCell(column.value(row), index))));
   return table.toString();
-}
-
-function stringify(value) {
-  if (Array.isArray(value)) return value.join(', ');
-  if (value === undefined || value === null) return '';
-  return String(value);
 }

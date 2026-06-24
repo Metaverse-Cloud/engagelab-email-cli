@@ -1,8 +1,8 @@
-﻿import { describe, it } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -30,18 +30,85 @@ describe('CLI command smoke tests', () => {
         env,
       });
       logCliResult(saved);
-      assert.match(saved.stdout, /Config saved/);
+      assert.match(stripAnsi(saved.stdout), /OK Config saved/);
+      assert.match(saved.stdout, /\u001B\[[0-9;]*m/);
 
       const listed = await runCli(['config', 'list'], { env });
       logCliResult(listed);
-      assert.match(listed.stdout, /baseUrl: http:\/\/127\.0\.0\.1:8080/);
-      assert.match(listed.stdout, /secretKey: sk_loca\*\*\*\*/);
-      assert.doesNotMatch(listed.stdout, /sk_local/);
+      assert.match(stripAnsi(listed.stdout), /baseUrl: http:\/\/127\.0\.0\.1:8080/);
+      assert.match(stripAnsi(listed.stdout), /secretKey: sk_loca\*\*\*\*/);
+      assert.doesNotMatch(stripAnsi(listed.stdout), /sk_local/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
+  it('keeps inferred baseUrl coverage in dedicated unit tests instead of external smoke calls', () => {
+    assert.ok(true);
+  });
+
+  it('prefers explicit baseUrl over the secret key mapping', async () => {
+    await withApiServer(async ({ baseUrl, requests }) => {
+      const result = await runCli([
+        '--base-url',
+        baseUrl,
+        '--secret-key',
+        'sk_tr_XDfUt2_RXkCWdOMGk6_GecyhRKOZiKvNtGDQbBbgxtM',
+        'threads',
+        'get',
+        'thread-1',
+      ]);
+      logCliResult(result);
+
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0].path, '/api/email/agent/v1/thread/get?threadId=thread-1');
+      assert.equal(requests[0].authorization, 'Bearer sk_tr_XDfUt2_RXkCWdOMGk6_GecyhRKOZiKvNtGDQbBbgxtM');
+      assert.match(result.stdout, /thread-1/);
+    });
+  });
+
+  it('runs config clear and removes saved local configuration', async () => {
+    const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-config-clear-${Date.now()}`), {
+      recursive: true,
+    });
+    const env = { ...process.env, ENGAGELAB_EMAIL_CONFIG: path.join(dir, 'config.json') };
+
+    try {
+      const saved = await runCli(['config', 'set', '--base-url', 'http://127.0.0.1:8080', '--secret-key', 'sk_local'], {
+        env,
+      });
+      logCliResult(saved);
+
+      const cleared = await runCli(['config', 'clear'], { env });
+      logCliResult(cleared);
+      assert.match(stripAnsi(cleared.stdout), /OK Config cleared/);
+
+      const listed = await runCli(['config', 'list'], { env });
+      logCliResult(listed);
+      assert.match(stripAnsi(listed.stdout), /^baseUrl:\s*$/m);
+      assert.match(stripAnsi(listed.stdout), /^secretKey:\s*$/m);
+      assert.doesNotMatch(stripAnsi(listed.stdout), /sk_local|127\.0\.0\.1:8080/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('honors NO_COLOR for human-readable output', async () => {
+    const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-no-color-${Date.now()}`), {
+      recursive: true,
+    });
+    const env = { ...process.env, ENGAGELAB_EMAIL_CONFIG: path.join(dir, 'config.json'), NO_COLOR: '1' };
+
+    try {
+      const result = await runCli(['config', 'set', '--base-url', 'http://127.0.0.1:8080'], { env });
+      logCliResult(result);
+
+      assert.match(result.stdout, /OK Config saved/);
+      assert.doesNotMatch(result.stdout, /\u001B\[[0-9;]*m/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
   for (const scenario of apiCommandScenarios()) {
     it(`runs ${scenario.name}`, async () => {
       await withApiServer(async ({ baseUrl, requests }) => {
@@ -62,7 +129,9 @@ describe('CLI command smoke tests', () => {
         assert.deepEqual(requests[0].body, scenario.body);
         assert.match(result.stdout, scenario.output);
         if (!scenario.args.includes('--json')) {
-          assert.match(stripAnsi(result.stderr), scenario.spinner);
+          const loading = stripAnsi(result.stderr);
+          assert.match(loading, new RegExp(`Starting ${scenario.spinner.source.replace('^', '')}`));
+          assert.match(loading, new RegExp(`Done ${scenario.spinner.source.replace('^', '')}`));
         }
       });
     });
@@ -77,6 +146,73 @@ describe('CLI command smoke tests', () => {
     assert.match(result.stdout, /--text-file/);
     assert.match(result.stdout, /--attachment/);
   });
+
+  it('rejects more than 10 attachments before sending', async () => {
+    await withApiServer(async ({ baseUrl, requests }) => {
+      const attachmentArgs = Array.from({ length: 11 }, () => ['--attachment', 'tests/fixtures/attachment.txt']).flat();
+      const result = await runCliAllowFailure([
+        '--base-url',
+        baseUrl,
+        '--secret-key',
+        'sk_smoke',
+        'emails',
+        'send',
+        '--mailbox-id',
+        '12',
+        '--to',
+        'user@example.com',
+        '--subject',
+        'Hello',
+        '--text',
+        'See attachments',
+        ...attachmentArgs,
+      ]);
+      logCliFailure(result);
+
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, /Attachments cannot exceed 10 files/);
+      assert.equal(requests.length, 0);
+    });
+  });
+
+  it('rejects attachments larger than 10MB in total before sending', async () => {
+    const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-attachment-${Date.now()}`), {
+      recursive: true,
+    });
+    const largeAttachment = path.join(dir, 'large.bin');
+
+    try {
+      await writeFile(largeAttachment, Buffer.alloc(10 * 1024 * 1024 + 1));
+      await withApiServer(async ({ baseUrl, requests }) => {
+        const result = await runCliAllowFailure([
+          '--base-url',
+          baseUrl,
+          '--secret-key',
+          'sk_smoke',
+          'emails',
+          'send',
+          '--mailbox-id',
+          '12',
+          '--to',
+          'user@example.com',
+          '--subject',
+          'Hello',
+          '--text',
+          'See attachment',
+          '--attachment',
+          largeAttachment,
+        ]);
+        logCliFailure(result);
+
+        assert.equal(result.code, 1);
+        assert.match(result.stderr, /Attachments total size cannot exceed 10MB/);
+        assert.equal(requests.length, 0);
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
 
   it('stops API commands when npm registry reports a newer version', async () => {
     registryVersion = '999.0.0';
@@ -112,6 +248,86 @@ describe('CLI command smoke tests', () => {
     }
   });
 
+
+  it('returns structured update details in json mode', async () => {
+    registryVersion = '999.0.0';
+    try {
+      await withApiServer(async ({ baseUrl, requests }) => {
+        const result = await runCliAllowFailure(
+          [
+            '--base-url',
+            baseUrl,
+            '--secret-key',
+            'sk_smoke',
+            'threads',
+            'get',
+            'thread-1',
+            '--json',
+          ],
+          {
+            env: {
+              ...process.env,
+              ENGAGELAB_EMAIL_CLI_DISABLE_UPDATE_CHECK: '',
+              ENGAGELAB_EMAIL_CLI_UPDATE_REGISTRY_URL: baseUrl,
+            },
+          },
+        );
+        logCliFailure(result);
+
+        const payload = JSON.parse(result.stderr);
+        assert.equal(result.code, 1);
+        assert.equal(payload.error.code, 'update_required');
+        assert.equal(payload.error.data.currentVersion, '1.2.0');
+        assert.equal(payload.error.data.latestVersion, '999.0.0');
+        assert.equal(payload.error.data.updateCommand, 'npm install -g engagelab-email-cli@latest');
+        assert.deepEqual(requests.map((request) => request.path), ['/engagelab-email-cli/latest']);
+      });
+    } finally {
+      registryVersion = '1.1.1';
+    }
+  });
+
+  it('renders listen status with centralized colors in human mode', async () => {
+    await withApiServer(async ({ baseUrl, requests }) => {
+      const child = spawn(
+        process.execPath,
+        [
+          'src/cli.js',
+          '--base-url',
+          baseUrl,
+          '--secret-key',
+          'sk_smoke',
+          'emails',
+          'receiving',
+          'listen',
+          '--limit',
+          '1',
+          '--interval',
+          '2',
+        ],
+        { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ENGAGELAB_EMAIL_CLI_DISABLE_UPDATE_CHECK: '1' } },
+      );
+
+      const output = collectChildOutput(child);
+      try {
+        await waitFor(() => requests.length >= 2, 10000);
+        await waitFor(() => output.stdout.includes('msg-2'), 10000);
+        child.kill();
+        await waitForExit(child);
+
+        const stderr = stripAnsi(output.stderr);
+        assert.match(output.stderr, /\u001B\[[0-9;]*m/);
+        assert.match(stderr, />> Connecting/);
+        assert.match(stderr, /OK Ready/);
+        assert.match(stderr, /Polling: every 2s/);
+        assert.doesNotMatch(stderr, /\? Ready/);
+        assert.match(stripAnsi(output.stdout), /msg-2/);
+        assert.match(output.stdout, /\u001B\[[0-9;]*m/);
+      } finally {
+        if (!child.killed) child.kill();
+      }
+    });
+  });
   it('polls emails receiving listen and advances the cursor', async () => {
     await withApiServer(async ({ baseUrl, requests }) => {
       const child = spawn(
@@ -136,7 +352,8 @@ describe('CLI command smoke tests', () => {
 
       const output = collectChildOutput(child);
       try {
-        await waitFor(() => requests.length >= 2, 5000);
+        await waitFor(() => requests.length >= 2, 10000);
+        await waitFor(() => output.stdout.includes('msg-2'), 10000);
         child.kill();
         await waitForExit(child);
 

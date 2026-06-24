@@ -36,10 +36,18 @@ Save your service address and Secret Key locally:
 engagelab-email-cli config set --base-url http://localhost:8087 --secret-key sk_xxx
 ```
 
+If you do not configure `baseUrl` manually, the CLI will obtain it automatically from the Secret Key. If you do configure `baseUrl`, the CLI uses the configured value.
+
 View the saved configuration:
 
 ```bash
 engagelab-email-cli config list
+```
+
+Clear the saved configuration:
+
+```bash
+engagelab-email-cli config clear
 ```
 
 `config list` masks the Secret Key.
@@ -123,6 +131,16 @@ Example:
 
 ```bash
 engagelab-email-cli config list
+```
+
+### `config clear`
+
+Clear saved local configuration, including `baseUrl` and `secretKey`.
+
+Example:
+
+```bash
+engagelab-email-cli config clear
 ```
 
 ### `threads list`
@@ -250,7 +268,7 @@ Reply to an inbound message.
 | `--bcc <email>` | BCC address. Can be repeated. |
 | `--reply-to <email>` | Reply-To address. Can be repeated. |
 | `--preview-text <text>` | Preview text. |
-| `--attachment <path>` | Attach a file. Can be repeated. |
+| `--attachment <path>` | Attach a file. Can be repeated. Up to 10 files, 10MB total. |
 | `--sandbox` | Send in sandbox mode. |
 | `--json` | Output raw JSON. |
 
@@ -280,7 +298,7 @@ Send a new email.
 | `--bcc <email>` | BCC address. Can be repeated. |
 | `--reply-to <email>` | Reply-To address. Can be repeated. |
 | `--preview-text <text>` | Preview text. |
-| `--attachment <path>` | Attach a file. Can be repeated. |
+| `--attachment <path>` | Attach a file. Can be repeated. Up to 10 files, 10MB total. |
 | `--sandbox` | Send in sandbox mode. |
 | `--json` | Output raw JSON. |
 

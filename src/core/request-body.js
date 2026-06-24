@@ -2,6 +2,9 @@
 import { basename, extname } from 'node:path';
 import { validationError } from './errors.js';
 
+const MAX_ATTACHMENT_COUNT = 10;
+const MAX_ATTACHMENT_TOTAL_SIZE_BYTES = 10 * 1024 * 1024;
+
 const fileOptionPairs = [
   ['text', 'textFile'],
   ['html', 'htmlFile'],
@@ -41,20 +44,33 @@ function validateBodyInputConflicts(options) {
 
 async function readAttachments(paths, { readFile }) {
   const filePaths = Array.isArray(paths) ? paths : [paths];
-  return Promise.all(
+  if (filePaths.length > MAX_ATTACHMENT_COUNT) {
+    throw validationError('Attachments cannot exceed 10 files.');
+  }
+
+  const files = await Promise.all(
     filePaths.map(async (filePath) => {
       const content = await readFile(filePath);
-      const filename = basename(filePath);
-      const contentType = guessContentType(filename);
-
-      return {
-        filename,
-        contentType,
-        type: contentType,
-        content: Buffer.from(content).toString('base64'),
-      };
+      return { filePath, content };
     }),
   );
+
+  const totalSize = files.reduce((sum, file) => sum + file.content.byteLength, 0);
+  if (totalSize > MAX_ATTACHMENT_TOTAL_SIZE_BYTES) {
+    throw validationError('Attachments total size cannot exceed 10MB.');
+  }
+
+  return files.map(({ filePath, content }) => {
+    const filename = basename(filePath);
+    const contentType = guessContentType(filename);
+
+    return {
+      filename,
+      contentType,
+      type: contentType,
+      content: Buffer.from(content).toString('base64'),
+    };
+  });
 }
 
 function guessContentType(filename) {

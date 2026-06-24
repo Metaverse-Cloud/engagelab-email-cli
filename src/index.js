@@ -6,6 +6,7 @@ import { registerEmailsCommands } from './commands/emails.js';
 import { registerThreadsCommands } from './commands/threads.js';
 import { toCliError } from './core/errors.js';
 import { writeJsonError } from './output/json.js';
+import { ui } from './output/ui.js';
 import { CLI_VERSION } from './version.js';
 
 export function configureProgram(program = new Command()) {
@@ -29,12 +30,15 @@ export async function run(argv = process.argv) {
     await program.parseAsync(argv);
   } catch (error) {
     const cliError = toCliError(error);
+    if (cliError.data?.silent) {
+      process.exitCode = cliError.exitCode;
+      return;
+    }
     if (argv.includes('--json')) {
       writeJsonError(process.stderr, cliError);
     } else {
-      process.stderr.write(`${cliError.message}\n`);
+      process.stderr.write(`${ui.failure(cliError.message)}\n`);
     }
     process.exitCode = cliError.exitCode;
   }
 }
-

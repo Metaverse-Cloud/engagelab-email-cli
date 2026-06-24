@@ -1,7 +1,7 @@
 import { resolveRequestBody } from '../core/request-body.js';
-import pc from 'picocolors';
 import { collect, parseNonNegativeInteger, parsePositiveInteger, requireValue } from '../core/validators.js';
 import { formatDetail, formatMessageList, formatSendResult } from '../output/formatters.js';
+import { ui } from '../output/ui.js';
 import { ReceivingService } from '../services/receiving-service.js';
 import { SendingService } from '../services/sending-service.js';
 import { bodyOptions, createApiClient, queryFromOptions, withSpinner, writeResult } from './shared.js';
@@ -181,7 +181,7 @@ async function listenForMessages(service, options, command) {
   const stop = () => {
     stopped = true;
     if (timeoutHandle) clearTimeout(timeoutHandle);
-    if (!jsonMode) stderr.write('\nStopped listening.\n');
+    if (!jsonMode) stderr.write(`\n${ui.muted('Stopped listening.')}\n`);
     process.exit(130);
   };
 
@@ -189,7 +189,7 @@ async function listenForMessages(service, options, command) {
   process.once('SIGTERM', stop);
 
   if (!jsonMode) {
-    stderr.write(`${pc.dim('Connecting...')}\n`);
+    stderr.write(`${ui.start('Connecting...')}\n`);
   }
 
   if (cursor === undefined) {
@@ -198,9 +198,9 @@ async function listenForMessages(service, options, command) {
   }
 
   if (!jsonMode) {
-    stderr.write(`${pc.green('✓')} Ready\n\n`);
-    stderr.write(`${pc.bold('Polling:')} every ${interval}s\n`);
-    stderr.write('Listening for new inbound emails. Press Ctrl+C to stop.\n\n');
+    stderr.write(`${ui.success('Ready')}\n\n`);
+    stderr.write(`${ui.heading('Polling:')} every ${interval}s\n`);
+    stderr.write(`${ui.muted('Listening for new inbound emails. Press Ctrl+C to stop.')}\n\n`);
   }
 
   const poll = async () => {
@@ -223,7 +223,7 @@ async function listenForMessages(service, options, command) {
       if (jsonMode) {
         stderr.write(`${JSON.stringify({ error: { code: 'poll_error', message } })}\n`);
       } else {
-        stderr.write(`${pc.dim(`[${timestamp()}]`)} ${pc.yellow('Warning:')} ${message}\n`);
+        stderr.write(`${ui.muted(`[${timestamp()}]`)} ${ui.warning(message)}\n`);
       }
 
       if (consecutiveErrors >= MAX_CONSECUTIVE_LISTEN_ERRORS) {
@@ -234,7 +234,7 @@ async function listenForMessages(service, options, command) {
         timeoutHandle = setTimeout(() => {
           poll().catch((error) => {
             const message = error instanceof Error ? error.message : String(error);
-            stderr.write(`${message}\n`);
+            stderr.write(`${ui.failure(message)}\n`);
             process.exit(5);
           });
         }, interval * 1000);
@@ -245,7 +245,7 @@ async function listenForMessages(service, options, command) {
   timeoutHandle = setTimeout(() => {
     poll().catch((error) => {
       const message = error instanceof Error ? error.message : String(error);
-      stderr.write(`${message}\n`);
+      stderr.write(`${ui.failure(message)}\n`);
       process.exit(5);
     });
   }, interval * 1000);
@@ -305,14 +305,7 @@ function formatListenMessage(message) {
   const id = message.messageUid || message.id || '';
   const route = to ? `${from} -> ${to}` : from;
 
-  return [
-    pc.dim(`[${timestamp()}]`),
-    route,
-    pc.bold(`"${subject}"`),
-    id ? pc.dim(String(id)) : null,
-  ]
-    .filter(Boolean)
-    .join('  ');
+  return ui.listenMessage({ time: timestamp(), route, subject, id });
 }
 
 function formatAddressList(value) {

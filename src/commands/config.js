@@ -1,5 +1,6 @@
 import { maskSecretKey, readConfig, writeConfig } from '../config/config-store.js';
 import { validationError } from '../core/errors.js';
+import { ui } from '../output/ui.js';
 
 export function registerConfigCommands(program) {
   const config = program.command('config').description('Manage local EngageLab Email CLI config');
@@ -19,7 +20,7 @@ export function registerConfigCommands(program) {
       }
       const current = await readConfig();
       await writeConfig({ ...current, ...stripUndefined(options) });
-      process.stdout.write('Config saved\n');
+      process.stdout.write(`${ui.success('Config saved')}\n`);
     });
 
   config
@@ -27,8 +28,16 @@ export function registerConfigCommands(program) {
     .description('Show local CLI configuration')
     .action(async () => {
       const current = await readConfig();
-      process.stdout.write(`baseUrl: ${current.baseUrl || ''}\n`);
-      process.stdout.write(`secretKey: ${maskSecretKey(current.secretKey)}\n`);
+      process.stdout.write(`${ui.label('baseUrl')}: ${current.baseUrl || ''}\n`);
+      process.stdout.write(`${ui.label('secretKey')}: ${maskSecretKey(current.secretKey)}\n`);
+    });
+
+  config
+    .command('clear')
+    .description('Clear local CLI configuration')
+    .action(async () => {
+      await writeConfig({});
+      process.stdout.write(`${ui.success('Config cleared')}\n`);
     });
 }
 

@@ -1,9 +1,9 @@
-﻿import ky from 'ky';
+import ky from 'ky';
 import semver from 'semver';
-import pc from 'picocolors';
 import { resolveRuntimeConfig } from '../config/resolve-runtime-config.js';
-import { CliError } from '../core/errors.js';
+import { handleOutdatedCli } from '../core/updater.js';
 import { compactObject } from '../core/validators.js';
+import { ui } from '../output/ui.js';
 import { CLI_VERSION } from '../version.js';
 
 const API_PREFIX = '/api/email/agent/v1';
@@ -12,7 +12,7 @@ const DEFAULT_REGISTRY_URL = 'https://registry.npmjs.org';
 const UPDATE_CHECK_TIMEOUT_MS = 1500;
 
 export async function createApiClient(command) {
-  await assertCliIsCurrent(command.opts().json);
+  await assertCliIsCurrent(command);
   const config = await resolveRuntimeConfig({ cliOptions: command.optsWithGlobals() });
   return ky.extend({
     prefix: trimTrailingSlash(config.baseUrl),
@@ -33,19 +33,13 @@ export async function withSpinner(command, message, task) {
     return task();
   }
 
-  if (!process.stderr.isTTY) {
-    process.stderr.write(`${message}...\n`);
-    return task();
-  }
-
-  const { default: ora } = await import('ora');
-  const spinner = ora({ text: message, stream: process.stderr }).start();
+  process.stderr.write(`${ui.start(`Starting ${message}...`)}\n`);
   try {
     const result = await task();
-    spinner.succeed(message);
+    process.stderr.write(`${ui.success(`Done ${message}`)}\n`);
     return result;
   } catch (error) {
-    spinner.fail(message);
+    process.stderr.write(`${ui.failure(`Failed ${message}`)}\n`);
     throw error;
   }
 }
@@ -80,7 +74,7 @@ export function bodyOptions(options, names) {
   return body;
 }
 
-async function assertCliIsCurrent(jsonMode) {
+async function assertCliIsCurrent(command) {
   if (process.env.ENGAGELAB_EMAIL_CLI_DISABLE_UPDATE_CHECK) return;
 
   let latestVersion;
@@ -100,15 +94,11 @@ async function assertCliIsCurrent(jsonMode) {
   if (!latestVersion || !semver.valid(latestVersion) || !semver.valid(CLI_VERSION)) return;
   if (!semver.gt(latestVersion, CLI_VERSION)) return;
 
-  const message = [
-    `A newer version of ${PACKAGE_NAME} is required: ${CLI_VERSION} -> ${latestVersion}`,
-    `Please run: ${pc.bold(`npm install -g ${PACKAGE_NAME}@latest`)}`,
-  ].join('\n');
-
-  throw new CliError(message, {
-    code: 'update_required',
-    exitCode: 1,
-    data: { currentVersion: CLI_VERSION, latestVersion },
+  await handleOutdatedCli({
+    packageName: PACKAGE_NAME,
+    currentVersion: CLI_VERSION,
+    latestVersion,
+    jsonMode: command.opts().json,
   });
 }
 

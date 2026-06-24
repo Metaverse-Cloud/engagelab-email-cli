@@ -1,6 +1,6 @@
-import pc from 'picocolors';
 import { renderTable } from './table.js';
 import { formatAgentConsumeStatus, formatMessageStatus } from './status.js';
+import { ui } from './ui.js';
 
 export function formatThreadList(result) {
   return renderTable(result.data?.list || [], [
@@ -32,10 +32,10 @@ export function formatDetail(result) {
 export function formatSendResult(result) {
   const data = result.data || {};
   return [
-    `${pc.green('✓')} Sent`,
-    data.messageUid ? `messageUid: ${data.messageUid}` : null,
-    data.requestId ? `requestId: ${data.requestId}` : null,
-    data.emailIds ? `emailIds: ${data.emailIds.join(', ')}` : null,
+    ui.success(ui.heading('Sent')),
+    data.messageUid ? `${ui.label('messageUid')}: ${data.messageUid}` : null,
+    data.requestId ? `${ui.label('requestId')}: ${data.requestId}` : null,
+    data.emailIds ? `${ui.label('emailIds')}: ${data.emailIds.join(', ')}` : null,
   ]
     .filter(Boolean)
     .join('\n');
