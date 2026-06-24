@@ -24,6 +24,7 @@ export async function handleOutdatedCli({
   stderr = process.stderr,
   confirm = waitForEnter,
   runCommand = runUpdateCommand,
+  env = process.env,
 }) {
   const command = updateCommand(packageName);
   const data = {
@@ -40,7 +41,7 @@ export async function handleOutdatedCli({
     });
   }
 
-  if (!isInteractive(stdin, stderr)) {
+  if (!isInteractive(stdin, stderr, env)) {
     throw new CliError(manualUpdateMessage(packageName, currentVersion, latestVersion, command.display), {
       code: 'update_required',
       exitCode: 1,
@@ -82,8 +83,8 @@ export async function handleOutdatedCli({
   });
 }
 
-function isInteractive(stdin, stderr) {
-  return Boolean(stdin?.isTTY && stderr?.isTTY && !process.env.CI);
+function isInteractive(stdin, stderr, env = process.env) {
+  return Boolean(stdin?.isTTY && stderr?.isTTY && !env.CI);
 }
 
 function writeInteractivePrompt(stderr, packageName, currentVersion, latestVersion, command) {

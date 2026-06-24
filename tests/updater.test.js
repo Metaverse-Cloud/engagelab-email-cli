@@ -38,6 +38,7 @@ describe('CLI updater', () => {
           commandRun = command;
           return 0;
         },
+        env: {},
       }),
       (error) => {
         assert.equal(error.code, 'update_completed');
@@ -73,12 +74,32 @@ describe('CLI updater', () => {
         stderr,
         confirm: async () => {},
         runCommand: async () => 1,
+        env: {},
       }),
       (error) => {
         assert.equal(error.code, 'update_failed');
         assert.match(error.message, /Failed to update engagelab-email-cli automatically/);
         assert.match(error.message, /Please run manually: npm install -g engagelab-email-cli@latest/);
         assert.equal(error.data.updateExitCode, 1);
+        return true;
+      },
+    );
+  });
+
+  it('treats CI sessions as non-interactive even when tty flags are set', async () => {
+    await assert.rejects(
+      handleOutdatedCli({
+        packageName: 'engagelab-email-cli',
+        currentVersion: CLI_VERSION,
+        latestVersion: '1.3.0',
+        jsonMode: false,
+        stdin: { isTTY: true },
+        stderr: new MemoryStream(),
+        env: { CI: 'true' },
+      }),
+      (error) => {
+        assert.equal(error.code, 'update_required');
+        assert.match(error.message, /This session is not interactive/);
         return true;
       },
     );
@@ -93,6 +114,7 @@ describe('CLI updater', () => {
         jsonMode: true,
         stdin: { isTTY: false },
         stderr: new MemoryStream(),
+        env: {},
       }),
       (error) => {
         assert.equal(error.code, 'update_required');
