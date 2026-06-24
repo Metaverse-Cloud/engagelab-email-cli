@@ -1,7 +1,7 @@
-import { readFile as defaultReadFile } from 'node:fs/promises';
+﻿import { readFile as defaultReadFile } from 'node:fs/promises';
+import { basename, extname } from 'node:path';
 import { validationError } from './errors.js';
 
-const bodyOptionNames = new Set(['bodyFile', 'bodyJson']);
 const fileOptionPairs = [
   ['text', 'textFile'],
   ['html', 'htmlFile'],
@@ -10,17 +10,9 @@ const fileOptionPairs = [
 export async function resolveRequestBody(options = {}, { readFile = defaultReadFile } = {}) {
   validateBodyInputConflicts(options);
 
-  if (options.bodyFile) {
-    return parseJson(await readFile(options.bodyFile, 'utf8'), `Invalid JSON in ${options.bodyFile}`);
-  }
-
-  if (options.bodyJson) {
-    return parseJson(options.bodyJson, 'Invalid JSON in --body-json');
-  }
-
   const body = {};
   for (const [key, value] of Object.entries(options)) {
-    if (bodyOptionNames.has(key) || key.endsWith('File') || value === undefined) {
+    if (key.endsWith('File') || key === 'attachment' || value === undefined) {
       continue;
     }
     body[key] = value;
@@ -32,23 +24,14 @@ export async function resolveRequestBody(options = {}, { readFile = defaultReadF
     }
   }
 
+  if (options.attachment) {
+    body.attachments = await readAttachments(options.attachment, { readFile });
+  }
+
   return body;
 }
 
 function validateBodyInputConflicts(options) {
-  if (options.bodyFile && options.bodyJson) {
-    throw validationError('--body-file and --body-json are mutually exclusive');
-  }
-
-  if (options.bodyFile || options.bodyJson) {
-    const fieldOptions = Object.entries(options).filter(
-      ([key, value]) => value !== undefined && !bodyOptionNames.has(key),
-    );
-    if (fieldOptions.length > 0) {
-      throw validationError('--body-file/--body-json cannot be combined with field-level body options');
-    }
-  }
-
   for (const [field, fileField] of fileOptionPairs) {
     if (options[field] && options[fileField]) {
       throw validationError(`--${kebab(field)} and --${kebab(fileField)} are mutually exclusive`);
@@ -56,15 +39,52 @@ function validateBodyInputConflicts(options) {
   }
 }
 
-function parseJson(text, message) {
-  try {
-    const value = JSON.parse(text);
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      throw new Error('JSON body must be an object');
-    }
-    return value;
-  } catch (error) {
-    throw validationError(`${message}: ${error.message}`);
+async function readAttachments(paths, { readFile }) {
+  const filePaths = Array.isArray(paths) ? paths : [paths];
+  return Promise.all(
+    filePaths.map(async (filePath) => {
+      const content = await readFile(filePath);
+      const filename = basename(filePath);
+      const contentType = guessContentType(filename);
+
+      return {
+        filename,
+        contentType,
+        type: contentType,
+        content: Buffer.from(content).toString('base64'),
+      };
+    }),
+  );
+}
+
+function guessContentType(filename) {
+  const extension = extname(filename).toLowerCase();
+
+  switch (extension) {
+    case '.txt':
+      return 'text/plain';
+    case '.html':
+    case '.htm':
+      return 'text/html';
+    case '.json':
+      return 'application/json';
+    case '.pdf':
+      return 'application/pdf';
+    case '.csv':
+      return 'text/csv';
+    case '.png':
+      return 'image/png';
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
+    case '.gif':
+      return 'image/gif';
+    case '.svg':
+      return 'image/svg+xml';
+    case '.zip':
+      return 'application/zip';
+    default:
+      return 'application/octet-stream';
   }
 }
 

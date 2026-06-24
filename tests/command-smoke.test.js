@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+﻿import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -8,6 +8,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
+let registryVersion = '1.1.1';
 
 describe('CLI command smoke tests', () => {
   it('prints the package version with -V', async () => {
@@ -60,9 +61,56 @@ describe('CLI command smoke tests', () => {
         assert.equal(requests[0].statusCode, scenario.statusCode ?? 200);
         assert.deepEqual(requests[0].body, scenario.body);
         assert.match(result.stdout, scenario.output);
+        if (!scenario.args.includes('--json')) {
+          assert.match(stripAnsi(result.stderr), scenario.spinner);
+        }
       });
     });
   }
+
+  it('does not expose raw JSON body options in send help', async () => {
+    const result = await runCli(['emails', 'send', '--help']);
+    logCliResult(result);
+
+    assert.doesNotMatch(result.stdout, /--body-json/);
+    assert.doesNotMatch(result.stdout, /--body-file/);
+    assert.match(result.stdout, /--text-file/);
+    assert.match(result.stdout, /--attachment/);
+  });
+
+  it('stops API commands when npm registry reports a newer version', async () => {
+    registryVersion = '999.0.0';
+    try {
+      await withApiServer(async ({ baseUrl, requests }) => {
+        const result = await runCliAllowFailure(
+          [
+            '--base-url',
+            baseUrl,
+            '--secret-key',
+            'sk_smoke',
+            'threads',
+            'get',
+            'thread-1',
+          ],
+          {
+            env: {
+              ...process.env,
+              ENGAGELAB_EMAIL_CLI_DISABLE_UPDATE_CHECK: '',
+              ENGAGELAB_EMAIL_CLI_UPDATE_REGISTRY_URL: baseUrl,
+            },
+          },
+        );
+        logCliFailure(result);
+
+        assert.equal(result.code, 1);
+        assert.match(result.stderr, /A newer version of engagelab-email-cli is required/);
+        assert.match(result.stderr, /npm install -g engagelab-email-cli@latest/);
+        assert.deepEqual(requests.map((request) => request.path), ['/engagelab-email-cli/latest']);
+      });
+    } finally {
+      registryVersion = '1.1.1';
+    }
+  });
 
   it('polls emails receiving listen and advances the cursor', async () => {
     await withApiServer(async ({ baseUrl, requests }) => {
@@ -83,7 +131,7 @@ describe('CLI command smoke tests', () => {
           '2',
           '--json',
         ],
-        { stdio: ['ignore', 'pipe', 'pipe'] },
+        { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ENGAGELAB_EMAIL_CLI_DISABLE_UPDATE_CHECK: '1' } },
       );
 
       const output = collectChildOutput(child);
@@ -93,9 +141,9 @@ describe('CLI command smoke tests', () => {
         await waitForExit(child);
 
         assert.equal(requests[0].method, 'GET');
-        assert.equal(requests[0].path, '/v1/message/listen?limit=1');
+        assert.equal(requests[0].path, '/api/email/agent/v1/message/listen?limit=1');
         assert.equal(requests[1].method, 'GET');
-        assert.equal(requests[1].path, '/v1/message/listen?after=1500&limit=1');
+        assert.equal(requests[1].path, '/api/email/agent/v1/message/listen?after=1500&limit=1');
         assert.equal(requests[0].authorization, 'Bearer sk_smoke');
         assert.equal(requests[1].authorization, 'Bearer sk_smoke');
         assert.doesNotMatch(output.stdout, /msg-1/);
@@ -126,22 +174,25 @@ function apiCommandScenarios() {
         '20',
       ],
       method: 'GET',
-      path: '/v1/thread/list?mailboxId=12&subject=Hello&participant=user%40example.com&pageNo=1&pageSize=20',
+      path: '/api/email/agent/v1/thread/list?mailboxId=12&subject=Hello&participant=user%40example.com&pageNo=1&pageSize=20',
       output: /Thread ID/,
+      spinner: /Fetching threads/,
     },
     {
       name: 'threads get',
       args: ['threads', 'get', 'thread-1'],
       method: 'GET',
-      path: '/v1/thread/get?threadId=thread-1',
+      path: '/api/email/agent/v1/thread/get?threadId=thread-1',
       output: /thread-1/,
+      spinner: /Fetching thread/,
     },
     {
       name: 'threads messages',
       args: ['threads', 'messages', 'thread-1', '--limit', '2', '--include-content'],
       method: 'GET',
-      path: '/v1/thread/messages?threadId=thread-1&limit=2&includeContent=true',
+      path: '/api/email/agent/v1/thread/messages?threadId=thread-1&limit=2&includeContent=true',
       output: /Message UID/,
+      spinner: /Fetching thread messages/,
     },
     {
       name: 'emails send',
@@ -158,7 +209,7 @@ function apiCommandScenarios() {
         '<p>Hello</p>',
       ],
       method: 'POST',
-      path: '/v1/mail/send',
+      path: '/api/email/agent/v1/mail/send',
       body: {
         mailboxId: 12,
         to: ['user@example.com'],
@@ -166,31 +217,101 @@ function apiCommandScenarios() {
         html: '<p>Hello</p>',
       },
       output: /Sent/,
+      spinner: /Sending email/,
+    },
+    {
+      name: 'emails send with attachment',
+      args: [
+        'emails',
+        'send',
+        '--mailbox-id',
+        '12',
+        '--to',
+        'user@example.com',
+        '--subject',
+        'Hello',
+        '--text',
+        'See attachment',
+        '--attachment',
+        'tests/fixtures/attachment.txt',
+      ],
+      method: 'POST',
+      path: '/api/email/agent/v1/mail/send',
+      body: {
+        mailboxId: 12,
+        to: ['user@example.com'],
+        subject: 'Hello',
+        text: 'See attachment',
+        attachments: [
+          {
+            filename: 'attachment.txt',
+            contentType: 'text/plain',
+            type: 'text/plain',
+            content: 'c2FtcGxlIGF0dGFjaG1lbnQK',
+          },
+        ],
+      },
+      output: /Sent/,
+      spinner: /Sending email/,
     },
     {
       name: 'emails receiving list',
       args: ['emails', 'receiving', 'list', '--mailbox-id', '12', '--keyword', 'Hello', '--page-no', '1'],
       method: 'GET',
-      path: '/v1/message/list?mailboxId=12&keyword=Hello&pageNo=1',
+      path: '/api/email/agent/v1/message/list?mailboxId=12&keyword=Hello&pageNo=1',
       output: /Message UID/,
+      spinner: /Fetching inbound messages/,
     },
     {
       name: 'emails receiving get',
       args: ['emails', 'receiving', 'get', 'msg-1'],
       method: 'GET',
-      path: '/v1/message/get?messageUid=msg-1',
+      path: '/api/email/agent/v1/message/get?messageUid=msg-1',
       output: /msg-1/,
+      spinner: /Fetching inbound message/,
     },
     {
       name: 'emails receiving reply',
       args: ['emails', 'receiving', 'reply', 'msg-1', '--subject', 'Re: Hello', '--text', 'Thanks'],
       method: 'POST',
-      path: '/v1/message/reply?messageUid=msg-1',
+      path: '/api/email/agent/v1/message/reply?messageUid=msg-1',
       body: {
         subject: 'Re: Hello',
         text: 'Thanks',
       },
       output: /Sent/,
+      spinner: /Sending reply/,
+    },
+    {
+      name: 'emails receiving reply with attachment',
+      args: [
+        'emails',
+        'receiving',
+        'reply',
+        'msg-1',
+        '--subject',
+        'Re: Hello',
+        '--text',
+        'Thanks',
+        '--attachment',
+        'tests/fixtures/attachment.txt',
+      ],
+      method: 'POST',
+      path: '/api/email/agent/v1/message/reply?messageUid=msg-1',
+      body: {
+        subject: 'Re: Hello',
+        text: 'Thanks',
+        attachments: [
+          {
+            filename: 'attachment.txt',
+            contentType: 'text/plain',
+            type: 'text/plain',
+            content: 'c2FtcGxlIGF0dGFjaG1lbnQK',
+          },
+        ],
+      },
+      output: /Sent/,
+      spinner: /Sending reply/,
     },
   ];
 }
@@ -234,31 +355,34 @@ async function readRequestBody(request) {
 }
 
 function responseFor(method, url) {
-  if (method === 'POST' && url === '/v1/mail/send') {
+  if (method === 'GET' && url === '/engagelab-email-cli/latest') {
+    return { statusCode: 200, body: { version: registryVersion } };
+  }
+  if (method === 'POST' && url === '/api/email/agent/v1/mail/send') {
     return ok({ messageUid: 'msg-sent', requestId: 'req-1' });
   }
-  if (method === 'POST' && url.startsWith('/v1/message/reply?')) {
+  if (method === 'POST' && url.startsWith('/api/email/agent/v1/message/reply?')) {
     return ok({ messageUid: 'msg-reply', requestId: 'req-2' });
   }
-  if (url.startsWith('/v1/thread/messages?')) {
+  if (url.startsWith('/api/email/agent/v1/thread/messages?')) {
     return ok({ list: [{ messageUid: 'msg-1', threadId: 'thread-1', subject: 'Hello' }] });
   }
-  if (url.startsWith('/v1/thread/list?')) {
+  if (url.startsWith('/api/email/agent/v1/thread/list?')) {
     return ok({ list: [{ threadId: 'thread-1', subject: 'Hello', messageCount: 1 }] });
   }
-  if (url === '/v1/thread/get?threadId=thread-1') {
+  if (url === '/api/email/agent/v1/thread/get?threadId=thread-1') {
     return ok({ threadId: 'thread-1', subject: 'Hello' });
   }
-  if (url === '/v1/message/listen?limit=1') {
+  if (url === '/api/email/agent/v1/message/listen?limit=1') {
     return ok([{ id: 1500, messageUid: 'msg-1', threadId: 'thread-1', subject: 'Seed' }]);
   }
-  if (url === '/v1/message/listen?after=1500&limit=1') {
+  if (url === '/api/email/agent/v1/message/listen?after=1500&limit=1') {
     return ok([{ id: 1501, messageUid: 'msg-2', threadId: 'thread-1', subject: 'New' }]);
   }
-  if (url.startsWith('/v1/message/list?') || url.startsWith('/v1/message/listen?')) {
+  if (url.startsWith('/api/email/agent/v1/message/list?') || url.startsWith('/api/email/agent/v1/message/listen?')) {
     return ok({ list: [{ messageUid: 'msg-1', threadId: 'thread-1', subject: 'Hello' }] });
   }
-  if (url === '/v1/message/get?messageUid=msg-1') {
+  if (url === '/api/email/agent/v1/message/get?messageUid=msg-1') {
     return ok({ messageUid: 'msg-1', threadId: 'thread-1', subject: 'Hello' });
   }
   return {
@@ -279,12 +403,35 @@ async function runCli(args, options = {}) {
   console.log(`[CLI] ${command}`);
   return execFileAsync(process.execPath, ['src/cli.js', ...args], {
     ...options,
-    env: options.env || process.env,
+    env: {
+      ...process.env,
+      ENGAGELAB_EMAIL_CLI_DISABLE_UPDATE_CHECK: '1',
+      ...(options.env || {}),
+    },
   });
+}
+
+async function runCliAllowFailure(args, options = {}) {
+  try {
+    const result = await runCli(args, options);
+    return { ...result, code: 0 };
+  } catch (error) {
+    return {
+      code: error.code,
+      stdout: error.stdout || '',
+      stderr: error.stderr || '',
+    };
+  }
 }
 
 function logCliResult(result) {
   console.log(`[CLI EXIT] 0`);
+  if (result.stdout.trim()) console.log(`[STDOUT] ${oneLine(result.stdout)}`);
+  if (result.stderr.trim()) console.log(`[STDERR] ${oneLine(result.stderr)}`);
+}
+
+function logCliFailure(result) {
+  console.log(`[CLI EXIT] ${result.code}`);
   if (result.stdout.trim()) console.log(`[STDOUT] ${oneLine(result.stdout)}`);
   if (result.stderr.trim()) console.log(`[STDERR] ${oneLine(result.stderr)}`);
 }
@@ -345,3 +492,6 @@ function waitForExit(child) {
   return new Promise((resolve) => child.once('exit', resolve));
 }
 
+function stripAnsi(value) {
+  return value.replace(/\u001B\[[0-9;]*m/g, '');
+}

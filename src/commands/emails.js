@@ -4,14 +4,26 @@ import { collect, parseNonNegativeInteger, parsePositiveInteger, requireValue } 
 import { formatDetail, formatMessageList, formatSendResult } from '../output/formatters.js';
 import { ReceivingService } from '../services/receiving-service.js';
 import { SendingService } from '../services/sending-service.js';
-import { bodyOptions, createApiClient, queryFromOptions, writeResult } from './shared.js';
+import { bodyOptions, createApiClient, queryFromOptions, withSpinner, writeResult } from './shared.js';
 import { validationError } from '../core/errors.js';
 
-const bodyFieldNames = [
-  'bodyFile',
-  'bodyJson',
+const sendBodyFieldNames = [
   'mailboxId',
+  'from',
   'to',
+  'cc',
+  'bcc',
+  'replyTo',
+  'subject',
+  'text',
+  'html',
+  'textFile',
+  'htmlFile',
+  'previewText',
+  'attachment',
+  'sandbox',
+];
+const replyBodyFieldNames = [
   'subject',
   'text',
   'html',
@@ -19,6 +31,10 @@ const bodyFieldNames = [
   'htmlFile',
   'cc',
   'bcc',
+  'replyTo',
+  'previewText',
+  'attachment',
+  'sandbox',
 ];
 const DEFAULT_LISTEN_LIMIT = 10;
 const DEFAULT_LISTEN_INTERVAL_SECONDS = 5;
@@ -35,9 +51,8 @@ function registerSend(emails) {
   emails
     .command('send')
     .description('Send a new email')
-    .option('--body-file <path>', 'Read full JSON request body from file')
-    .option('--body-json <json>', 'Read full JSON request body from inline JSON')
     .option('--mailbox-id <id>', 'Mailbox ID', parsePositiveInteger)
+    .option('--from <email>', 'Sender email address')
     .option('--to <email>', 'Recipient email address', collect)
     .option('--subject <text>', 'Email subject')
     .option('--text <text>', 'Plain text body')
@@ -46,12 +61,17 @@ function registerSend(emails) {
     .option('--html-file <path>', 'Read HTML body from file')
     .option('--cc <email>', 'CC address', collect)
     .option('--bcc <email>', 'BCC address', collect)
+    .option('--reply-to <email>', 'Reply-To address', collect)
+    .option('--preview-text <text>', 'Email preview text')
+    .option('--attachment <path>', 'Attach local file', collect)
+    .option('--sandbox', 'Send in sandbox mode')
     .option('--json', 'Output raw JSON')
     .action(async (options, command) => {
-      const body = await resolveRequestBody(bodyOptions(options, bodyFieldNames));
+      const body = await resolveRequestBody(bodyOptions(options, sendBodyFieldNames));
       validateSendBody(body);
       const service = new SendingService(await createApiClient(command));
-      writeResult(command, await service.sendEmail(body), formatSendResult);
+      const result = await withSpinner(command, 'Sending email', () => service.sendEmail(body));
+      writeResult(command, result, formatSendResult);
     });
 }
 
@@ -68,14 +88,13 @@ function registerReceiving(emails) {
     .option('--json', 'Output raw JSON')
     .action(async (options, command) => {
       const service = new ReceivingService(await createApiClient(command));
-      const result = await service.listMessages(
-        queryFromOptions(options, {
-          mailboxId: 'mailboxId',
-          keyword: 'keyword',
-          pageNo: 'pageNo',
-          pageSize: 'pageSize',
-        }),
-      );
+      const query = queryFromOptions(options, {
+        mailboxId: 'mailboxId',
+        keyword: 'keyword',
+        pageNo: 'pageNo',
+        pageSize: 'pageSize',
+      });
+      const result = await withSpinner(command, 'Fetching inbound messages', () => service.listMessages(query));
       writeResult(command, result, formatMessageList);
     });
 
@@ -87,7 +106,8 @@ function registerReceiving(emails) {
     .action(async (messageUid, options, command) => {
       requireValue(messageUid, 'Message UID is required');
       const service = new ReceivingService(await createApiClient(command));
-      writeResult(command, await service.getMessage(messageUid), formatDetail);
+      const result = await withSpinner(command, 'Fetching inbound message', () => service.getMessage(messageUid));
+      writeResult(command, result, formatDetail);
     });
 
   receiving
@@ -106,8 +126,6 @@ function registerReceiving(emails) {
     .command('reply')
     .description('Reply to an inbound message')
     .argument('<message-uid>', 'Message UID')
-    .option('--body-file <path>', 'Read full JSON request body from file')
-    .option('--body-json <json>', 'Read full JSON request body from inline JSON')
     .option('--subject <text>', 'Reply subject')
     .option('--text <text>', 'Plain text body')
     .option('--html <html>', 'HTML body')
@@ -115,15 +133,18 @@ function registerReceiving(emails) {
     .option('--html-file <path>', 'Read HTML body from file')
     .option('--cc <email>', 'CC address', collect)
     .option('--bcc <email>', 'BCC address', collect)
+    .option('--reply-to <email>', 'Reply-To address', collect)
+    .option('--preview-text <text>', 'Email preview text')
+    .option('--attachment <path>', 'Attach local file', collect)
+    .option('--sandbox', 'Send in sandbox mode')
     .option('--json', 'Output raw JSON')
     .action(async (messageUid, options, command) => {
       requireValue(messageUid, 'Message UID is required');
-      const body = await resolveRequestBody(
-        bodyOptions(options, ['bodyFile', 'bodyJson', 'subject', 'text', 'html', 'textFile', 'htmlFile', 'cc', 'bcc']),
-      );
+      const body = await resolveRequestBody(bodyOptions(options, replyBodyFieldNames));
       validateReplyBody(body);
       const service = new ReceivingService(await createApiClient(command));
-      writeResult(command, await service.replyMessage(messageUid, body), formatSendResult);
+      const result = await withSpinner(command, 'Sending reply', () => service.replyMessage(messageUid, body));
+      writeResult(command, result, formatSendResult);
     });
 }
 

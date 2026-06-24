@@ -1,6 +1,6 @@
 import { ThreadsService } from '../services/threads-service.js';
 import { parseNonNegativeInteger, parsePositiveInteger, requireValue } from '../core/validators.js';
-import { createApiClient, queryFromOptions, writeResult } from './shared.js';
+import { createApiClient, queryFromOptions, withSpinner, writeResult } from './shared.js';
 import { formatDetail, formatMessageList, formatThreadList } from '../output/formatters.js';
 
 export function registerThreadsCommands(program) {
@@ -19,17 +19,16 @@ export function registerThreadsCommands(program) {
     .option('--json', 'Output raw JSON')
     .action(async (options, command) => {
       const service = new ThreadsService(await createApiClient(command));
-      const result = await service.listThreads(
-        queryFromOptions(options, {
-          mailboxId: 'mailboxId',
-          subject: 'subject',
-          participant: 'participant',
-          startTime: 'startTime',
-          endTime: 'endTime',
-          pageNo: 'pageNo',
-          pageSize: 'pageSize',
-        }),
-      );
+      const query = queryFromOptions(options, {
+        mailboxId: 'mailboxId',
+        subject: 'subject',
+        participant: 'participant',
+        startTime: 'startTime',
+        endTime: 'endTime',
+        pageNo: 'pageNo',
+        pageSize: 'pageSize',
+      });
+      const result = await withSpinner(command, 'Fetching threads', () => service.listThreads(query));
       writeResult(command, result, formatThreadList);
     });
 
@@ -41,7 +40,8 @@ export function registerThreadsCommands(program) {
     .action(async (threadId, options, command) => {
       requireValue(threadId, 'Thread ID is required');
       const service = new ThreadsService(await createApiClient(command));
-      writeResult(command, await service.getThread(threadId), formatDetail);
+      const result = await withSpinner(command, 'Fetching thread', () => service.getThread(threadId));
+      writeResult(command, result, formatDetail);
     });
 
   threads
@@ -54,10 +54,8 @@ export function registerThreadsCommands(program) {
     .action(async (threadId, options, command) => {
       requireValue(threadId, 'Thread ID is required');
       const service = new ThreadsService(await createApiClient(command));
-      const result = await service.listThreadMessages(
-        threadId,
-        queryFromOptions(options, { limit: 'limit', includeContent: 'includeContent' }),
-      );
+      const query = queryFromOptions(options, { limit: 'limit', includeContent: 'includeContent' });
+      const result = await withSpinner(command, 'Fetching thread messages', () => service.listThreadMessages(threadId, query));
       writeResult(command, result, formatMessageList);
     });
 }
