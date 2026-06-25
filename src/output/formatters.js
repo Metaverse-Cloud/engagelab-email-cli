@@ -9,7 +9,6 @@ export function formatThreadList(result) {
     { header: 'Participants', value: (row) => row.participants },
     { header: 'Last Message', value: (row) => row.lastMessageAt },
     { header: 'Count', value: (row) => row.messageCount },
-    { header: 'Status', value: (row) => row.status },
   ]);
 }
 
@@ -19,8 +18,6 @@ export function formatMessageList(result) {
     { header: 'Thread ID', value: (row) => row.threadId },
     { header: 'From', value: (row) => row.fromEmail || row.envelopeFrom },
     { header: 'Subject', value: (row) => row.subject },
-    { header: 'Status', value: (row) => formatMessageStatus(row.status) },
-    { header: 'Agent', value: (row) => formatAgentConsumeStatus(row.agentConsumeStatus) },
     { header: 'Received', value: (row) => row.receivedAt },
   ]);
 }

@@ -22,7 +22,7 @@ describe('pretty output', () => {
   });
 
 
-  it('renders message tables with color accents', () => {
+  it('renders message tables without color accents', () => {
     const output = formatMessageList({
       data: [
         {
@@ -34,27 +34,29 @@ describe('pretty output', () => {
       ],
     });
 
-    assert.match(output, /\u001B\[[0-9;]*m/);
-    assert.match(stripAnsi(output), /alice@example\.com/);
-    assert.match(stripAnsi(output), /Hello/);
+    assert.doesNotMatch(output, /\u001B\[[0-9;]*m/);
+    assert.match(output, /alice@example\.com/);
+    assert.match(output, /Hello/);
   });
 
-  it('colors table cells from column position instead of header names', () => {
+  it('renders table cells without ANSI colors regardless of column position', () => {
     const output = renderTable([{ first: 'alpha', second: 'beta' }], [
       { header: 'Any First Label', value: (row) => row.first },
       { header: 'Any Second Label', value: (row) => row.second },
     ]);
 
-    assert.match(output, /\u001B\[[0-9;]*malpha\u001B\[[0-9;]*m/);
-    assert.match(output, /\u001B\[[0-9;]*mbeta\u001B\[[0-9;]*m/);
+    assert.doesNotMatch(output, /\u001B\[[0-9;]*m/);
+    assert.match(output, /alpha/);
+    assert.match(output, /beta/);
   });
 
-  it('colors status-like values regardless of column header', () => {
+  it('renders status-like table values without ANSI colors', () => {
     const output = renderTable([{ result: 'failed' }], [
       { header: 'Outcome', value: (row) => row.result },
     ]);
 
-    assert.match(output, /\u001B\[[0-9;]*mfailed\u001B\[[0-9;]*m/);
+    assert.doesNotMatch(output, /\u001B\[[0-9;]*m/);
+    assert.match(output, /failed/);
   });
 
   it('renders send success with a visual success marker', () => {
