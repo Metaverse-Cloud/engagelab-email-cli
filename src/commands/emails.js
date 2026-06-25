@@ -194,7 +194,7 @@ async function listenForMessages(service, options, command) {
 
   if (cursor === undefined) {
     const seed = await service.listenMessages({ limit: 1 });
-    cursor = cursorFromMessages(extractMessages(seed));
+    cursor = resolveListenCursor(extractMessages(seed));
   }
 
   if (!jsonMode) {
@@ -212,7 +212,7 @@ async function listenForMessages(service, options, command) {
       const messages = extractMessages(result);
 
       if (messages.length > 0) {
-        cursor = cursorFromMessages(messages) ?? cursor;
+        cursor = resolveListenCursor(messages) ?? cursor;
         writeListenMessages(stdout, messages, jsonMode);
       }
 
@@ -265,20 +265,30 @@ function extractMessages(result) {
   return [];
 }
 
-function cursorFromMessages(messages) {
+function resolveListenCursor(messages) {
   const cursorValues = messages.map(cursorFromMessage).filter((value) => value !== undefined);
-  if (cursorValues.length === 0) return undefined;
-
-  const numericValues = cursorValues.map(Number).filter(Number.isFinite);
-  if (numericValues.length === cursorValues.length) {
-    return Math.max(...numericValues);
+  if (cursorValues.length === 0) {
+    if (messages.length > 0) {
+      throw validationError('Listen cursor must be numeric. Re-run with --after <numeric-id>.');
+    }
+    return undefined;
   }
 
-  return cursorValues.at(-1);
+  const numericValues = cursorValues.filter(Number.isFinite);
+  if (numericValues.length !== cursorValues.length) {
+    throw validationError('Listen cursor must be numeric. Re-run with --after <numeric-id>.');
+  }
+
+  return Math.max(...numericValues);
 }
 
 function cursorFromMessage(message) {
-  return message.id ?? message.messageId ?? message.messageUid;
+  const candidates = [message.id, message.messageId];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'number' && Number.isFinite(candidate)) return candidate;
+    if (typeof candidate === 'string' && /^\d+$/.test(candidate)) return Number(candidate);
+  }
+  return undefined;
 }
 
 function writeListenMessages(stdout, messages, jsonMode) {

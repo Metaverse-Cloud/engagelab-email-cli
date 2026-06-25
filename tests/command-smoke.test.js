@@ -10,6 +10,7 @@ import { CLI_VERSION } from '../src/version.js';
 
 const execFileAsync = promisify(execFile);
 let registryVersion = '1.1.1';
+let smokeMode;
 
 describe('CLI command smoke tests', () => {
   it('prints the package version with -V', async () => {
@@ -397,6 +398,50 @@ describe('CLI command smoke tests', () => {
       }
     });
   });
+
+  it('fails fast when the listen seed does not contain a numeric cursor', async () => {
+    smokeMode = 'listen-seed-without-numeric-cursor';
+    try {
+      await withApiServer(async ({ baseUrl, requests }) => {
+        const child = spawn(
+          process.execPath,
+          [
+            'src/cli.js',
+            '--base-url',
+            baseUrl,
+            '--secret-key',
+            'sk_smoke',
+            'emails',
+            'receiving',
+            'listen',
+            '--limit',
+            '1',
+            '--interval',
+            '2',
+            '--json',
+          ],
+          {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            env: {
+              ...process.env,
+              ENGAGELAB_EMAIL_CLI_DISABLE_UPDATE_CHECK: '1',
+            },
+          },
+        );
+
+        const output = collectChildOutput(child);
+        await waitForExit(child);
+
+        assert.equal(child.exitCode, 1);
+        assert.equal(requests.length, 1);
+        assert.equal(requests[0].path, '/api/email/agent/v1/message/listen?limit=1');
+        assert.match(output.stderr, /Listen cursor must be numeric/);
+        assert.equal(output.stdout, '');
+      });
+    } finally {
+      smokeMode = undefined;
+    }
+  });
 });
 
 function apiCommandScenarios() {
@@ -618,6 +663,9 @@ function responseFor(method, url) {
     return ok({ threadId: 'thread-1', subject: 'Hello' });
   }
   if (url === '/api/email/agent/v1/message/listen?limit=1') {
+    if (smokeMode === 'listen-seed-without-numeric-cursor') {
+      return ok([{ messageUid: 'msg-seed', threadId: 'thread-1', subject: 'Seed without numeric cursor' }]);
+    }
     return ok([{ id: 1500, messageUid: 'msg-1', threadId: 'thread-1', subject: 'Seed' }]);
   }
   if (url === '/api/email/agent/v1/message/listen?after=1500&limit=1') {

@@ -28,15 +28,17 @@ When you run a command that connects to EngageLab Email, the CLI checks whether 
 npm install -g engagelab-email-cli@latest
 ```
 
-## Configure
+## Configuration
+
+### Manage Saved Configuration
+
+Use the `config` command group to save, inspect, or clear local credentials.
 
 Save your service address and Secret Key locally:
 
 ```bash
 engagelab-email-cli config set --base-url http://localhost:8087 --secret-key sk_xxx
 ```
-
-If you do not configure `baseUrl` manually, the CLI will obtain it automatically from the Secret Key. If you do configure `baseUrl`, the CLI uses the configured value.
 
 View the saved configuration:
 
@@ -52,24 +54,22 @@ engagelab-email-cli config clear
 
 `config list` masks the Secret Key.
 
-You can also pass credentials for a single command:
+### Use Global Credentials With Any Business Command
+
+You do not have to save credentials first. You can pass `--base-url` and `--secret-key` directly before any business command such as `threads ...` or `emails ...`. These command-line credentials apply only to the current command and do not overwrite saved config.
+
+Example:
 
 ```bash
-engagelab-email-cli --base-url http://localhost:8087 --secret-key sk_xxx emails receiving list
+engagelab-email-cli --base-url http://localhost:8087 --secret-key sk_xxx threads get thread-1
 ```
-
-Configuration priority:
-
-1. Command options: `--base-url`, `--secret-key`
-2. Environment variables: `ENGAGELAB_EMAIL_BASE_URL`, `ENGAGELAB_EMAIL_SECRET_KEY`
-3. Local config file
 
 ## Quick Start
 
 List recent inbound messages:
 
 ```bash
-engagelab-email-cli emails receiving list --page-size 20
+engagelab-email-cli emails receiving list --mailbox-id 12 --page-size 20
 ```
 
 Read one inbound message:
@@ -81,13 +81,13 @@ engagelab-email-cli emails receiving get <message-uid>
 View the full thread around a message:
 
 ```bash
-engagelab-email-cli threads messages <thread-id> --include-content
+engagelab-email-cli threads messages <thread-id> --include-content --limit 10
 ```
 
 Reply to an inbound message:
 
 ```bash
-engagelab-email-cli emails receiving reply <message-uid> --text "Thanks, we received your message."
+engagelab-email-cli emails receiving reply <message-uid> --subject "Re: Hello" --text "Thanks, we received your message."
 ```
 
 Send a new email:
@@ -103,7 +103,7 @@ engagelab-email-cli emails send \
 For scripts or agents, add `--json` to get machine-readable output:
 
 ```bash
-engagelab-email-cli emails receiving list --page-size 20 --json
+engagelab-email-cli emails receiving list --mailbox-id 12 --page-size 20 --json
 ```
 
 ## Commands
@@ -114,8 +114,8 @@ Save local configuration.
 
 | Option | Description |
 | --- | --- |
-| `--base-url <url>` | Service address, such as `http://localhost:8087`. |
-| `--secret-key <key>` | Secret Key. It must start with `sk_`. |
+| `--base-url <url>` | Service address. Defaults to `ENGAGELAB_EMAIL_BASE_URL` when set. |
+| `--secret-key <key>` | Secret Key. Defaults to `ENGAGELAB_EMAIL_SECRET_KEY` when set. |
 
 Example:
 
@@ -150,12 +150,12 @@ List email threads.
 | Option | Description |
 | --- | --- |
 | `--mailbox-id <id>` | Filter by mailbox ID. |
-| `--subject <text>` | Search by subject. |
-| `--participant <email>` | Search by participant email address. |
-| `--start-time <timestamp>` | Filter by latest message start time in milliseconds. |
-| `--end-time <timestamp>` | Filter by latest message end time in milliseconds. |
+| `--subject <text>` | Search by normalized subject. |
+| `--participant <email>` | Search by participant. |
+| `--start-time <timestamp>` | Latest message start timestamp in milliseconds. |
+| `--end-time <timestamp>` | Latest message end timestamp in milliseconds. |
 | `--page-no <number>` | Page number. |
-| `--page-size <number>` | Number of results per page. |
+| `--page-size <number>` | Page size. |
 | `--json` | Output raw JSON. |
 
 Example:
@@ -186,8 +186,8 @@ List messages in a thread.
 | Argument/Option | Description |
 | --- | --- |
 | `<thread-id>` | Thread ID. |
-| `--limit <number>` | Maximum number of messages to return. |
-| `--include-content` | Include message content and attachment information. |
+| `--limit <number>` | Message limit. |
+| `--include-content` | Include text/html/headers/attachments. |
 | `--json` | Output raw JSON. |
 
 Example:
@@ -203,9 +203,9 @@ List inbound messages.
 | Option | Description |
 | --- | --- |
 | `--mailbox-id <id>` | Filter by mailbox ID. |
-| `--keyword <text>` | Search by keyword. |
+| `--keyword <text>` | Search keyword. |
 | `--page-no <number>` | Page number. |
-| `--page-size <number>` | Number of results per page. |
+| `--page-size <number>` | Page size. |
 | `--json` | Output raw JSON. |
 
 Example:
@@ -235,9 +235,9 @@ Poll for new inbound messages. This command keeps running until you stop it with
 
 | Option | Description |
 | --- | --- |
-| `--after <id>` | Start after a known cursor ID. |
-| `--limit <number>` | Maximum messages per poll. Default: `10`. |
-| `--interval <seconds>` | Polling interval. Default: `5`; minimum: `2`. |
+| `--after <id>` | Cursor ID from the previous result. |
+| `--limit <number>` | Message limit. |
+| `--interval <seconds>` | Polling interval in seconds (minimum 2). |
 | `--json` | Output one JSON message per line. |
 
 Example:
@@ -260,15 +260,15 @@ Reply to an inbound message.
 | --- | --- |
 | `<message-uid>` | Message UID to reply to. |
 | `--subject <text>` | Reply subject. |
-| `--text <text>` | Plain text reply content. |
-| `--html <html>` | HTML reply content. |
-| `--text-file <path>` | Read plain text reply content from a file. |
-| `--html-file <path>` | Read HTML reply content from a file. |
+| `--text <text>` | Plain text body. |
+| `--html <html>` | HTML body. |
+| `--text-file <path>` | Read plain text body from file. |
+| `--html-file <path>` | Read HTML body from file. |
 | `--cc <email>` | CC address. Can be repeated. |
 | `--bcc <email>` | BCC address. Can be repeated. |
 | `--reply-to <email>` | Reply-To address. Can be repeated. |
-| `--preview-text <text>` | Preview text. |
-| `--attachment <path>` | Attach a file. Can be repeated. Up to 10 files, 10MB total. |
+| `--preview-text <text>` | Email preview text. |
+| `--attachment <path>` | Attach local file. Can be repeated. Up to 10 files, 10MB total. |
 | `--sandbox` | Send in sandbox mode. |
 | `--json` | Output raw JSON. |
 
@@ -276,6 +276,7 @@ Example:
 
 ```bash
 engagelab-email-cli emails receiving reply 7e2b2de6-14c5-4ef1-a1e2-f4337e4606e2 \
+  --subject "Re: Refund update" \
   --text "Thanks, we received your message." \
   --attachment ./receipt.pdf
 ```
@@ -286,19 +287,19 @@ Send a new email.
 
 | Option | Description |
 | --- | --- |
-| `--mailbox-id <id>` | Mailbox ID to send from. Required. |
-| `--from <email>` | Sender address. |
-| `--to <email>` | Recipient address. Can be repeated. Required. |
-| `--subject <text>` | Email subject. Required. |
-| `--text <text>` | Plain text email content. |
-| `--html <html>` | HTML email content. |
-| `--text-file <path>` | Read plain text email content from a file. |
-| `--html-file <path>` | Read HTML email content from a file. |
+| `--mailbox-id <id>` | Mailbox ID. |
+| `--from <email>` | Sender email address. |
+| `--to <email>` | Recipient email address. Can be repeated. |
+| `--subject <text>` | Email subject. |
+| `--text <text>` | Plain text body. |
+| `--html <html>` | HTML body. |
+| `--text-file <path>` | Read plain text body from file. |
+| `--html-file <path>` | Read HTML body from file. |
 | `--cc <email>` | CC address. Can be repeated. |
 | `--bcc <email>` | BCC address. Can be repeated. |
 | `--reply-to <email>` | Reply-To address. Can be repeated. |
-| `--preview-text <text>` | Preview text. |
-| `--attachment <path>` | Attach a file. Can be repeated. Up to 10 files, 10MB total. |
+| `--preview-text <text>` | Email preview text. |
+| `--attachment <path>` | Attach local file. Can be repeated. Up to 10 files, 10MB total. |
 | `--sandbox` | Send in sandbox mode. |
 | `--json` | Output raw JSON. |
 
