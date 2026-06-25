@@ -1,27 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { Writable } from 'node:stream';
 import { handleOutdatedCli, updateCommandText } from '../src/core/updater.js';
 import { CLI_VERSION } from '../src/version.js';
 
-class MemoryStream extends Writable {
-  constructor() {
-    super();
-    this.output = '';
-    this.isTTY = true;
-  }
-
-  _write(chunk, _encoding, callback) {
-    this.output += chunk.toString('utf8');
-    callback();
-  }
-}
-
 describe('CLI updater', () => {
-  it('prompts in interactive mode and runs the update after confirmation', async () => {
-    const stderr = new MemoryStream();
+  it('requires manual update even in interactive mode', async () => {
     let confirmed = false;
-    let commandRun;
+    let commandRun = false;
 
     await assert.rejects(
       handleOutdatedCli({
@@ -30,40 +15,29 @@ describe('CLI updater', () => {
         latestVersion: '1.3.0',
         jsonMode: false,
         stdin: { isTTY: true },
-        stderr,
+        stderr: { isTTY: true },
         confirm: async () => {
           confirmed = true;
         },
-        runCommand: async (command) => {
-          commandRun = command;
+        runCommand: async () => {
+          commandRun = true;
           return 0;
         },
         env: {},
       }),
       (error) => {
-        assert.equal(error.code, 'update_completed');
-        assert.equal(error.exitCode, 0);
-        assert.equal(error.data?.silent, true);
+        assert.equal(error.code, 'update_required');
+        assert.match(error.message, /A newer version of engagelab-email-cli is required/);
+        assert.match(error.message, /Please run: npm install -g engagelab-email-cli@latest/);
         return true;
       },
     );
 
-    assert.equal(confirmed, true);
-    assert.deepEqual(commandRun, {
-      command: process.platform === 'win32' ? 'npm.cmd' : 'npm',
-      args: ['install', '-g', 'engagelab-email-cli@latest'],
-      display: 'npm install -g engagelab-email-cli@latest',
-    });
-    assert.match(stripAnsi(stderr.output), new RegExp(`A newer version is available: ${escapeRegExp(CLI_VERSION)} -> 1\.3\.0`));
-    assert.match(stripAnsi(stderr.output), /Press Enter to update automatically, or press Ctrl\+C to cancel/);
-    assert.match(stripAnsi(stderr.output), /OK Updated engagelab-email-cli to 1\.3\.0/);
-    assert.match(stripAnsi(stderr.output), /Please run your command again/);
+    assert.equal(confirmed, false);
+    assert.equal(commandRun, false);
   });
 
-
-  it('explains the manual command when automatic update fails', async () => {
-    const stderr = new MemoryStream();
-
+  it('returns the same manual update instruction for CI sessions', async () => {
     await assert.rejects(
       handleOutdatedCli({
         packageName: 'engagelab-email-cli',
@@ -71,35 +45,13 @@ describe('CLI updater', () => {
         latestVersion: '1.3.0',
         jsonMode: false,
         stdin: { isTTY: true },
-        stderr,
-        confirm: async () => {},
-        runCommand: async () => 1,
-        env: {},
-      }),
-      (error) => {
-        assert.equal(error.code, 'update_failed');
-        assert.match(error.message, /Failed to update engagelab-email-cli automatically/);
-        assert.match(error.message, /Please run manually: npm install -g engagelab-email-cli@latest/);
-        assert.equal(error.data.updateExitCode, 1);
-        return true;
-      },
-    );
-  });
-
-  it('treats CI sessions as non-interactive even when tty flags are set', async () => {
-    await assert.rejects(
-      handleOutdatedCli({
-        packageName: 'engagelab-email-cli',
-        currentVersion: CLI_VERSION,
-        latestVersion: '1.3.0',
-        jsonMode: false,
-        stdin: { isTTY: true },
-        stderr: new MemoryStream(),
+        stderr: { isTTY: true },
         env: { CI: 'true' },
       }),
       (error) => {
         assert.equal(error.code, 'update_required');
-        assert.match(error.message, /This session is not interactive/);
+        assert.match(error.message, /Please run: npm install -g engagelab-email-cli@latest/);
+        assert.doesNotMatch(error.message, /This session is not interactive/);
         return true;
       },
     );
@@ -113,7 +65,7 @@ describe('CLI updater', () => {
         latestVersion: '1.3.0',
         jsonMode: true,
         stdin: { isTTY: false },
-        stderr: new MemoryStream(),
+        stderr: { isTTY: false },
         env: {},
       }),
       (error) => {
@@ -126,11 +78,3 @@ describe('CLI updater', () => {
     );
   });
 });
-
-function stripAnsi(value) {
-  return value.replace(/\u001B\[[0-9;]*m/g, '');
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}

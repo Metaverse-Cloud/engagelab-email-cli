@@ -192,10 +192,6 @@ async function listenForMessages(service, options, command) {
     stderr.write(`${ui.start('Connecting...')}\n`);
   }
 
-  if (cursor === undefined) {
-    const seed = await service.listenMessages({ limit: 1 });
-    cursor = resolveListenCursor(extractMessages(seed));
-  }
 
   if (!jsonMode) {
     stderr.write(`${ui.success('Ready')}\n\n`);
@@ -267,17 +263,10 @@ function extractMessages(result) {
 
 function resolveListenCursor(messages) {
   const cursorValues = messages.map(cursorFromMessage).filter((value) => value !== undefined);
-  if (cursorValues.length === 0) {
-    if (messages.length > 0) {
-      throw validationError('Listen cursor must be numeric. Re-run with --after <numeric-id>.');
-    }
-    return undefined;
-  }
+  if (cursorValues.length === 0) return undefined;
 
   const numericValues = cursorValues.filter(Number.isFinite);
-  if (numericValues.length !== cursorValues.length) {
-    throw validationError('Listen cursor must be numeric. Re-run with --after <numeric-id>.');
-  }
+  if (numericValues.length === 0) return undefined;
 
   return Math.max(...numericValues);
 }

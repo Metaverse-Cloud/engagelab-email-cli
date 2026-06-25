@@ -391,7 +391,7 @@ describe('CLI command smoke tests', () => {
         assert.equal(requests[1].path, '/api/email/agent/v1/message/listen?after=1500&limit=1');
         assert.equal(requests[0].authorization, 'Bearer sk_smoke');
         assert.equal(requests[1].authorization, 'Bearer sk_smoke');
-        assert.doesNotMatch(output.stdout, /msg-1/);
+        assert.match(output.stdout, /msg-1/);
         assert.match(output.stdout, /msg-2/);
       } finally {
         if (!child.killed) child.kill();
@@ -399,7 +399,7 @@ describe('CLI command smoke tests', () => {
     });
   });
 
-  it('fails fast when the listen seed does not contain a numeric cursor', async () => {
+  it('keeps polling raw listen results when the response has no numeric cursor', async () => {
     smokeMode = 'listen-seed-without-numeric-cursor';
     try {
       await withApiServer(async ({ baseUrl, requests }) => {
@@ -430,13 +430,19 @@ describe('CLI command smoke tests', () => {
         );
 
         const output = collectChildOutput(child);
-        await waitForExit(child);
+        try {
+          await waitFor(() => requests.length >= 2, 10000);
+          await waitFor(() => output.stdout.includes('msg-seed'), 10000);
+          child.kill();
+          await waitForExit(child);
 
-        assert.equal(child.exitCode, 1);
-        assert.equal(requests.length, 1);
-        assert.equal(requests[0].path, '/api/email/agent/v1/message/listen?limit=1');
-        assert.match(output.stderr, /Listen cursor must be numeric/);
-        assert.equal(output.stdout, '');
+          assert.equal(requests[0].path, '/api/email/agent/v1/message/listen?limit=1');
+          assert.equal(requests[1].path, '/api/email/agent/v1/message/listen?limit=1');
+          assert.doesNotMatch(output.stderr, /Listen cursor must be numeric/);
+          assert.match(output.stdout, /msg-seed/);
+        } finally {
+          if (!child.killed) child.kill();
+        }
       });
     } finally {
       smokeMode = undefined;
