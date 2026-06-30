@@ -14,7 +14,7 @@ Use it to:
 ## Install
 
 ```bash
-npm install -g engagelab-email-cli
+npm install -g @engagelabemail/cli
 ```
 
 Check the installed version:
@@ -26,7 +26,7 @@ engagelab-email-cli -V
 When you run a command that connects to EngageLab Email, the CLI checks whether a newer CLI version is available. If an update is required, it stops and shows the update command:
 
 ```bash
-npm install -g engagelab-email-cli@latest
+npm install -g @engagelabemail/cli@latest
 ```
 
 ## Configuration
@@ -381,3 +381,4 @@ Exit codes follow the API document:
 | `3` | Resource not found |
 | `4` | Conflict or in-progress state |
 | `5` | Server error or network error |
+
