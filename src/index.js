@@ -3,8 +3,9 @@
 import { Command } from 'commander';
 import { registerConfigCommands } from './commands/config.js';
 import { registerEmailsCommands } from './commands/emails.js';
+import { registerMailboxCommands } from './commands/mailbox.js';
 import { registerThreadsCommands } from './commands/threads.js';
-import { toCliError } from './core/errors.js';
+import { formatCliErrorMessage, toCliError } from './core/errors.js';
 import { writeJsonError } from './output/json.js';
 import { ui } from './output/ui.js';
 import { CLI_VERSION } from './version.js';
@@ -18,6 +19,7 @@ export function configureProgram(program = new Command()) {
     .option('--secret-key <key>', 'EngageLab Email Secret Key', process.env.ENGAGELAB_EMAIL_SECRET_KEY);
 
   registerConfigCommands(program);
+  registerMailboxCommands(program);
   registerThreadsCommands(program);
   registerEmailsCommands(program);
 
@@ -37,7 +39,7 @@ export async function run(argv = process.argv) {
     if (argv.includes('--json')) {
       writeJsonError(process.stderr, cliError);
     } else {
-      process.stderr.write(`${ui.failure(cliError.message)}\n`);
+      process.stderr.write(`${ui.failure(formatCliErrorMessage(cliError))}\n`);
     }
     process.exitCode = cliError.exitCode;
   }

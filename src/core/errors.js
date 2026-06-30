@@ -1,19 +1,26 @@
 export class CliError extends Error {
-  constructor(message, { code = 'cli_error', exitCode = 1, status, data, cause } = {}) {
+  constructor(message, { code = 'cli_error', exitCode = 1, status, data, cause, errorCode } = {}) {
     super(message, { cause });
     this.name = 'CliError';
     this.code = code;
     this.exitCode = exitCode;
     this.status = status;
     this.data = data;
+    this.errorCode = errorCode;
   }
 }
 
-export function mapHttpStatusToExitCode(status) {
-  if (status === 401 || status === 403) return 2;
-  if (status === 404) return 3;
-  if (status === 409) return 4;
+export function mapErrorCodeToExitCode(errorCode, status) {
+  if (errorCode === 100101 || status === 401 || status === 403) return 2;
+  if (errorCode === 100201 || status === 404) return 3;
+  if (errorCode === 100202 || errorCode === 100203 || errorCode === 100303 || status === 409) return 4;
   return 5;
+}
+
+export function formatCliErrorMessage(error) {
+  const code = error?.errorCode ?? error?.data?.code;
+  const message = error?.message || 'Command failed';
+  return code !== undefined ? `[${code}] ${message}` : message;
 }
 
 export function toCliError(error) {

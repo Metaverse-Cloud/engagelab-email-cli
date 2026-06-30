@@ -2,6 +2,7 @@ export function writeJsonError(stderr, error) {
   const payload = {
     error: {
       code: error.code || 'unknown_error',
+      errorCode: error.errorCode ?? error.data?.code,
       message: error.message || 'Command failed',
     },
   };

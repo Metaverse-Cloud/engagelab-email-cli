@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatMessageList, formatSendResult } from '../src/output/formatters.js';
+import { formatMailboxList, formatMessageList, formatSendResult } from '../src/output/formatters.js';
 import { renderTable } from '../src/output/table.js';
 
 describe('pretty output', () => {

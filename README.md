@@ -4,6 +4,7 @@ EngageLab Email CLI helps agents and developers work with inbound and outbound e
 
 Use it to:
 
+- List available mailboxes
 - List and inspect email threads
 - Read inbound messages
 - Poll for new inbound messages
@@ -141,6 +142,23 @@ Example:
 
 ```bash
 engagelab-email-cli config clear
+```
+
+### `mailbox list`
+
+List available mailboxes.
+
+| Option | Description |
+| --- | --- |
+| `--mailbox <address>` | Filter by mailbox address. |
+| `--page-no <number>` | Page number. |
+| `--page-size <number>` | Page size. |
+| `--json` | Output raw JSON. |
+
+Example:
+
+```bash
+engagelab-email-cli mailbox list --page-size 20
 ```
 
 ### `threads list`
@@ -336,3 +354,30 @@ engagelab-email-cli emails receiving get <message-uid> --json
 ```
 
 `emails receiving listen --json` prints one message JSON object per line.
+
+
+## Errors
+
+Human-readable errors include the business error code when the API returns one, for example `[100101] unauthorized`.
+
+`--json` errors use this shape:
+
+```json
+{
+  "error": {
+    "code": "auth_error",
+    "errorCode": 100101,
+    "message": "unauthorized"
+  }
+}
+```
+
+Exit codes follow the API document:
+
+| Exit Code | Meaning |
+| --- | --- |
+| `1` | Parameter error or missing config |
+| `2` | Authentication failure |
+| `3` | Resource not found |
+| `4` | Conflict or in-progress state |
+| `5` | Server error or network error |

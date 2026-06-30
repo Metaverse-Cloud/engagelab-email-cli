@@ -12,6 +12,16 @@ export function formatThreadList(result) {
   ]);
 }
 
+export function formatMailboxList(result) {
+  return renderTable(result.data?.list || [], [
+    { header: 'Mailbox ID', value: (row) => row.mailboxId },
+    { header: 'Address', value: (row) => row.address || row.emailAddress },
+    { header: 'Domain', value: (row) => row.domain },
+    { header: 'Forward', value: (row) => row.transferAddress || row.forwardEmail || row.forwardUrl || '-' },
+    { header: 'Updated', value: (row) => row.updateTime },
+  ]);
+}
+
 export function formatMessageList(result) {
   return renderTable(result.data?.list || result.data || [], [
     { header: 'Message UID', value: (row) => row.messageUid },

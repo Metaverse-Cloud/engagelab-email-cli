@@ -692,7 +692,7 @@ function responseFor(method, url) {
 function ok(data) {
   return {
     statusCode: 200,
-    body: { code: 200, message: 'success', data },
+    body: { code: 0, message: 'success', data },
   };
 }
 
