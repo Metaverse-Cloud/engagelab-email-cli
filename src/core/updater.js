@@ -14,6 +14,7 @@ export function updateCommand(packageName) {
 
 export async function handleOutdatedCli({
   packageName,
+  displayName = packageName,
   currentVersion,
   latestVersion,
   jsonMode,
@@ -25,16 +26,16 @@ export async function handleOutdatedCli({
     updateCommand: command.display,
   };
 
-  throw new CliError(updateRequiredMessage(packageName, currentVersion, latestVersion, command.display), {
+  throw new CliError(updateRequiredMessage(displayName, currentVersion, latestVersion, command.display), {
     code: 'update_required',
     exitCode: 1,
     data,
   });
 }
 
-function updateRequiredMessage(packageName, currentVersion, latestVersion, command) {
+function updateRequiredMessage(displayName, currentVersion, latestVersion, command) {
   return [
-    `A newer version of ${packageName} is required: ${currentVersion} -> ${latestVersion}`,
+    `A newer version of ${displayName} is required: ${currentVersion} -> ${latestVersion}`,
     `Please run: ${command}`,
   ].join('\n');
 }

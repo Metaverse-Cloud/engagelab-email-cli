@@ -7,7 +7,8 @@ import { ui } from '../output/ui.js';
 import { CLI_VERSION } from '../version.js';
 
 const API_PREFIX = '/api/email/agent/v1';
-const PACKAGE_NAME = 'engagelab-email-cli';
+const PACKAGE_NAME = '@engagelabemail/cli';
+const CLI_DISPLAY_NAME = 'engagelab-email-cli';
 const DEFAULT_REGISTRY_URL = 'https://registry.npmjs.org';
 const UPDATE_CHECK_TIMEOUT_MS = 1500;
 
@@ -80,7 +81,7 @@ async function assertCliIsCurrent(command) {
   let latestVersion;
   try {
     const registryUrl = trimTrailingSlash(process.env.ENGAGELAB_EMAIL_CLI_UPDATE_REGISTRY_URL || DEFAULT_REGISTRY_URL);
-    const response = await fetch(`${registryUrl}/${PACKAGE_NAME}/latest`, {
+    const response = await fetch(`${registryUrl}/${encodePackageNameForRegistry(PACKAGE_NAME)}/latest`, {
       signal: AbortSignal.timeout(UPDATE_CHECK_TIMEOUT_MS),
       headers: { accept: 'application/json' },
     });
@@ -96,6 +97,7 @@ async function assertCliIsCurrent(command) {
 
   await handleOutdatedCli({
     packageName: PACKAGE_NAME,
+    displayName: CLI_DISPLAY_NAME,
     currentVersion: CLI_VERSION,
     latestVersion,
     jsonMode: command.opts().json,
@@ -104,4 +106,8 @@ async function assertCliIsCurrent(command) {
 
 function trimTrailingSlash(value) {
   return value.endsWith('/') ? value.slice(0, -1) : value;
+}
+
+function encodePackageNameForRegistry(packageName) {
+  return packageName.replace('/', '%2f');
 }

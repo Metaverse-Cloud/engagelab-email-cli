@@ -268,8 +268,8 @@ describe('CLI command smoke tests', () => {
 
         assert.equal(result.code, 1);
         assert.match(result.stderr, /A newer version of engagelab-email-cli is required/);
-        assert.match(result.stderr, /npm install -g engagelab-email-cli@latest/);
-        assert.deepEqual(requests.map((request) => request.path), ['/engagelab-email-cli/latest']);
+        assert.match(result.stderr, /npm install -g @engagelabemail\/cli@latest/);
+        assert.deepEqual(requests.map((request) => request.path), ['/@engagelabemail%2fcli/latest']);
       });
     } finally {
       registryVersion = '1.1.1';
@@ -307,8 +307,8 @@ describe('CLI command smoke tests', () => {
         assert.equal(payload.error.code, 'update_required');
         assert.equal(payload.error.data.currentVersion, CLI_VERSION);
         assert.equal(payload.error.data.latestVersion, '999.0.0');
-        assert.equal(payload.error.data.updateCommand, 'npm install -g engagelab-email-cli@latest');
-        assert.deepEqual(requests.map((request) => request.path), ['/engagelab-email-cli/latest']);
+        assert.equal(payload.error.data.updateCommand, 'npm install -g @engagelabemail/cli@latest');
+        assert.deepEqual(requests.map((request) => request.path), ['/@engagelabemail%2fcli/latest']);
       });
     } finally {
       registryVersion = '1.1.1';
@@ -650,7 +650,7 @@ async function readRequestBody(request) {
 }
 
 function responseFor(method, url) {
-  if (method === 'GET' && url === '/engagelab-email-cli/latest') {
+  if (method === 'GET' && url === '/@engagelabemail%2fcli/latest') {
     return { statusCode: 200, body: { version: registryVersion } };
   }
   if (method === 'POST' && url === '/api/email/agent/v1/mail/send') {

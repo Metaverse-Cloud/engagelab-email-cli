@@ -10,7 +10,8 @@ describe('CLI updater', () => {
 
     await assert.rejects(
       handleOutdatedCli({
-        packageName: 'engagelab-email-cli',
+        packageName: '@engagelabemail/cli',
+        displayName: 'engagelab-email-cli',
         currentVersion: CLI_VERSION,
         latestVersion: '1.3.0',
         jsonMode: false,
@@ -28,7 +29,7 @@ describe('CLI updater', () => {
       (error) => {
         assert.equal(error.code, 'update_required');
         assert.match(error.message, /A newer version of engagelab-email-cli is required/);
-        assert.match(error.message, /Please run: npm install -g engagelab-email-cli@latest/);
+        assert.match(error.message, /Please run: npm install -g @engagelabemail\/cli@latest/);
         return true;
       },
     );
@@ -40,7 +41,8 @@ describe('CLI updater', () => {
   it('returns the same manual update instruction for CI sessions', async () => {
     await assert.rejects(
       handleOutdatedCli({
-        packageName: 'engagelab-email-cli',
+        packageName: '@engagelabemail/cli',
+        displayName: 'engagelab-email-cli',
         currentVersion: CLI_VERSION,
         latestVersion: '1.3.0',
         jsonMode: false,
@@ -50,7 +52,7 @@ describe('CLI updater', () => {
       }),
       (error) => {
         assert.equal(error.code, 'update_required');
-        assert.match(error.message, /Please run: npm install -g engagelab-email-cli@latest/);
+        assert.match(error.message, /Please run: npm install -g @engagelabemail\/cli@latest/);
         assert.doesNotMatch(error.message, /This session is not interactive/);
         return true;
       },
@@ -60,7 +62,8 @@ describe('CLI updater', () => {
   it('throws structured update_required details in json mode', async () => {
     await assert.rejects(
       handleOutdatedCli({
-        packageName: 'engagelab-email-cli',
+        packageName: '@engagelabemail/cli',
+        displayName: 'engagelab-email-cli',
         currentVersion: CLI_VERSION,
         latestVersion: '1.3.0',
         jsonMode: true,
@@ -72,7 +75,7 @@ describe('CLI updater', () => {
         assert.equal(error.code, 'update_required');
         assert.equal(error.data.currentVersion, CLI_VERSION);
         assert.equal(error.data.latestVersion, '1.3.0');
-        assert.equal(error.data.updateCommand, updateCommandText('engagelab-email-cli'));
+        assert.equal(error.data.updateCommand, updateCommandText('@engagelabemail/cli'));
         return true;
       },
     );

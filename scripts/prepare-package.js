@@ -20,6 +20,7 @@ const publishPackage = {
   main: sourcePackage.main,
   exports: sourcePackage.exports,
   bin: sourcePackage.bin,
+  files: sourcePackage.files,
   keywords: sourcePackage.keywords,
   repository: sourcePackage.repository,
   bugs: sourcePackage.bugs,

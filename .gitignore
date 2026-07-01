@@ -7,4 +7,5 @@ tests-dev/
 *.tgz
 *.md
 !README.md
+!SKILL.md
 !.github/pull_request_template.md
