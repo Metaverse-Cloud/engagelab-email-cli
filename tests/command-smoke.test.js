@@ -121,6 +121,62 @@ describe('CLI command smoke tests', () => {
     }
   });
 
+  it('keeps debug commands hidden from help output', async () => {
+    const result = await runCli(['--help']);
+    logCliResult(result);
+
+    assert.doesNotMatch(result.stdout, /debug/);
+  });
+
+  it('toggles hidden HTTP debug logging in local config', async () => {
+    const dir = await mkdir(path.join(os.tmpdir(), 'engagelab-email-cli-debug-' + Date.now()), {
+      recursive: true,
+    });
+    const configPath = path.join(dir, 'config.json');
+    const env = { ...process.env, ENGAGELAB_EMAIL_CONFIG: configPath };
+
+    try {
+      const enabled = await runCli(['debug', 'http', 'on'], { env });
+      logCliResult(enabled);
+      assert.match(stripAnsi(enabled.stdout), /OK HTTP debug enabled/);
+      assert.equal(JSON.parse(await readFile(configPath, 'utf8')).debugHttp, true);
+
+      const disabled = await runCli(['debug', 'http', 'off'], { env });
+      logCliResult(disabled);
+      assert.match(stripAnsi(disabled.stdout), /OK HTTP debug disabled/);
+      assert.equal(JSON.parse(await readFile(configPath, 'utf8')).debugHttp, false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('prints sanitized HTTP request and response details when hidden debug logging is enabled', async () => {
+    const dir = await mkdir(path.join(os.tmpdir(), 'engagelab-email-cli-debug-http-' + Date.now()), {
+      recursive: true,
+    });
+    const configPath = path.join(dir, 'config.json');
+    const env = { ...process.env, ENGAGELAB_EMAIL_CONFIG: configPath };
+
+    try {
+      await withApiServer(async ({ baseUrl }) => {
+        await writeFile(configPath, JSON.stringify({ baseUrl, secretKey: 'sk_smoke_secret_value', debugHttp: true }, null, 2));
+        const result = await runCli(['threads', 'get', 'thread-1', '--json'], { env });
+        logCliResult(result);
+
+        assert.match(result.stdout, /"code": 0/);
+        const stderr = stripAnsi(result.stderr);
+        assert.match(stderr, /HTTP Request/);
+        assert.ok(stderr.includes('/api/email/agent/v1/thread/get?threadId=thread-1'));
+        assert.ok(stderr.includes('authorization: Bearer sk_smok****'));
+        assert.doesNotMatch(stderr, /sk_smoke_secret_value/);
+        assert.match(stderr, /HTTP Response 200/);
+        assert.match(stderr, /"threadId": "thread-1"/);
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('auto-saves the baseUrl mapped from the secret key region when no --base-url is provided', async () => {
     const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-config-auto-${Date.now()}`), {
       recursive: true,
@@ -736,7 +792,7 @@ function apiCommandScenarios() {
             filename: 'inline.png',
             content: 'aW5saW5lIGltYWdl',
             disposition: 'inline',
-            content_id: 'image_1000',
+            contentId: 'image_1000',
           },
         ],
       },
@@ -778,7 +834,7 @@ function apiCommandScenarios() {
             filename: 'inline.png',
             content: 'aW5saW5lIGltYWdl',
             disposition: 'inline',
-            content_id: 'image_1000',
+            contentId: 'image_1000',
           },
         ],
       },

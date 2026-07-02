@@ -89,7 +89,7 @@ async function readAttachments(paths, { contentIds, dispositions, readFile }) {
     };
 
     if (contentId) {
-      attachment.content_id = contentId;
+      attachment.contentId = contentId;
     }
 
     return attachment;

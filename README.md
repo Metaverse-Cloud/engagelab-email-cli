@@ -397,7 +397,7 @@ Human-readable errors include the business error code when the API returns one, 
 }
 ```
 
-Exit codes follow the API document:
+Exit codes:
 
 | Exit Code | Meaning |
 | --- | --- |

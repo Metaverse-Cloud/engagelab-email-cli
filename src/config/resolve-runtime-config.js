@@ -21,7 +21,7 @@ export async function resolveRuntimeConfig(options = {}) {
     throw configError('Secret Key must start with sk_');
   }
 
-  return { baseUrl: details.baseUrl, secretKey: details.secretKey };
+  return { baseUrl: details.baseUrl, secretKey: details.secretKey, debugHttp: details.debugHttp };
 }
 
 export async function resolveRuntimeConfigDetails({
@@ -40,6 +40,7 @@ export async function resolveRuntimeConfigDetails({
     secretKey: secretKeyResolution.value,
     secretKeySource: secretKeyResolution.source,
     fileConfig,
+    debugHttp: fileConfig.debugHttp === true,
     requireSecretKey,
   };
 }

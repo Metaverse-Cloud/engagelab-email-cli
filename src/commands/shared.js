@@ -1,6 +1,7 @@
 import ky from 'ky';
 import semver from 'semver';
 import { resolveRuntimeConfig } from '../config/resolve-runtime-config.js';
+import { createHttpDebugHooks } from '../core/http-debug.js';
 import { handleOutdatedCli } from '../core/updater.js';
 import { compactObject } from '../core/validators.js';
 import { ui } from '../output/ui.js';
@@ -22,6 +23,7 @@ export async function createApiClient(command) {
     },
     timeout: 30000,
     throwHttpErrors: false,
+    hooks: config.debugHttp ? createHttpDebugHooks() : undefined,
   });
 }
 

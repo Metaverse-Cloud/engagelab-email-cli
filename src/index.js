@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { registerConfigCommands } from './commands/config.js';
+import { registerDebugCommands } from './commands/debug.js';
 import { registerEmailsCommands } from './commands/emails.js';
 import { registerMailboxCommands } from './commands/mailbox.js';
 import { registerThreadsCommands } from './commands/threads.js';
@@ -19,6 +20,7 @@ export function configureProgram(program = new Command()) {
     .option('--secret-key <key>', 'EngageLab Email Secret Key', process.env.ENGAGELAB_EMAIL_SECRET_KEY);
 
   registerConfigCommands(program);
+  registerDebugCommands(program);
   registerMailboxCommands(program);
   registerThreadsCommands(program);
   registerEmailsCommands(program);
