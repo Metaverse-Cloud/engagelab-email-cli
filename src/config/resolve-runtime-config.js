@@ -2,8 +2,8 @@ import { readConfig as defaultReadConfig } from './config-store.js';
 import { configError } from '../core/errors.js';
 
 const SECRET_KEY_BASE_URL_MAP = {
-  sg: 'https://www.engagelab.com',
-  tr: 'https://email-tr.engagelab.com',
+  sg: 'https://email.api.engagelab.cc',
+  tr: 'https://emailapi-tr.engagelab.com',
 };
 
 export async function resolveRuntimeConfig(options = {}) {
