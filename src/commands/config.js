@@ -1,4 +1,5 @@
 import { maskSecretKey, readConfig, writeConfig } from '../config/config-store.js';
+import { inferBaseUrlFromSecretKey } from '../config/resolve-runtime-config.js';
 import { validationError } from '../core/errors.js';
 import { ui } from '../output/ui.js';
 
@@ -19,8 +20,19 @@ export function registerConfigCommands(program) {
         throw validationError('Secret Key must start with sk_');
       }
       const current = await readConfig();
-      await writeConfig({ ...current, ...stripUndefined(options) });
+      const merged = { ...current, ...stripUndefined(options) };
+      // When no explicit --base-url is provided, auto-map it from the secret key region.
+      if (!options.baseUrl) {
+        const inferred = inferBaseUrlFromSecretKey(merged.secretKey);
+        if (inferred) {
+          merged.baseUrl = inferred;
+        }
+      }
+      await writeConfig(merged);
       process.stdout.write(`${ui.success('Config saved')}\n`);
+      if (!options.baseUrl && merged.baseUrl) {
+        process.stdout.write(`${ui.muted(`baseUrl mapped from key region: ${merged.baseUrl}`)}\n`);
+      }
     });
 
   config

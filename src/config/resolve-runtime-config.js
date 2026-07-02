@@ -62,7 +62,7 @@ function resolveBaseUrl(cliOptions, env, fileConfig, secretKey) {
   return { value: undefined, source: 'missing' };
 }
 
-function inferBaseUrlFromSecretKey(secretKey) {
+export function inferBaseUrlFromSecretKey(secretKey) {
   if (!secretKey || !secretKey.startsWith('sk_')) {
     return undefined;
   }

@@ -121,6 +121,30 @@ describe('CLI command smoke tests', () => {
     }
   });
 
+  it('auto-saves the baseUrl mapped from the secret key region when no --base-url is provided', async () => {
+    const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-config-auto-${Date.now()}`), {
+      recursive: true,
+    });
+    const env = { ...process.env, ENGAGELAB_EMAIL_CONFIG: path.join(dir, 'config.json') };
+
+    try {
+      const saved = await runCli(
+        ['config', 'set', '--secret-key', 'sk_sg_XDfUt2_RXkCWdOMGk6_GecyhRKOZiKvNtGDQbBbgxtM'],
+        { env },
+      );
+      logCliResult(saved);
+      assert.match(stripAnsi(saved.stdout), /OK Config saved/);
+      assert.match(stripAnsi(saved.stdout), /baseUrl mapped from key region: https:\/\/www\.engagelab\.com/);
+
+      const listed = await runCli(['config', 'list'], { env });
+      logCliResult(listed);
+      assert.match(stripAnsi(listed.stdout), /baseUrl: https:\/\/www\.engagelab\.com/);
+      assert.match(stripAnsi(listed.stdout), /secretKey: sk_sg_XD\*\*\*\*/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('honors NO_COLOR for human-readable output', async () => {
     const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-no-color-${Date.now()}`), {
       recursive: true,
