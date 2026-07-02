@@ -139,7 +139,7 @@ describe('CLI command smoke tests', () => {
       const listed = await runCli(['config', 'list'], { env });
       logCliResult(listed);
       assert.match(stripAnsi(listed.stdout), /baseUrl: https:\/\/www\.engagelab\.com/);
-      assert.match(stripAnsi(listed.stdout), /secretKey: sk_sg_XD\*\*\*\*/);
+      assert.match(stripAnsi(listed.stdout), /secretKey: sk_sg_X\*\*\*\*/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
