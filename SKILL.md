@@ -173,9 +173,29 @@ engagelab-email-cli emails send --mailbox-id <mailbox_id> --to <recipient> --sub
 - `--to` (string, required): Recipient, supports repeated passing for multiple recipients.
 - `--subject` (string, required): Email subject.
 - `--text` / `--html` (string, conditionally required): Email body.
-- `--attachment <path>` (string, optional): Attach a local file. Can be repeated.
-- Attachments are limited to 10 files and 10MB total.
+- `--attachment <path>` (string, optional): Attach a local file. Can be repeated. Requires `--disposition` when used.
+- `--disposition <attachment|inline>` (string, required with attachments): Attachment disposition. Can be repeated or provided once for all attachments.
+- `--content-id <id>` (string, required for inline image attachments): Content-ID referenced by HTML `cid:<id>`.
+- Attachments are limited to 10 files and 10MB total after base64 encoding (about 7.5MB raw files).
 
+**Inline image attachment example**
+```bash
+engagelab-email-cli emails send --mailbox-id 1001 --to alice@example.com --subject "Inline image" --html "<p>Logo <img src=cid:image_1000></p>" --attachment ./logo.png --disposition inline --content-id image_1000 --json
+```
+
+**Recommended multi-attachment metadata format**
+Bind metadata directly to each attachment path when there is more than one attachment:
+```bash
+engagelab-email-cli emails send --mailbox-id 1001 --to alice@example.com --subject "Mixed attachments" --html "<p>Logo <img src=cid:image_1000></p>" --attachment "./receipt.pdf;disposition=attachment" --attachment "./logo.png;disposition=inline;content_id=image_1000" --json
+```
+
+**Compatibility format**
+The split-option format remains supported for simple or legacy commands:
+```bash
+engagelab-email-cli emails send --mailbox-id 1001 --to alice@example.com --subject "Inline image" --html "<p>Logo <img src=cid:image_1000></p>" --attachment ./logo.png --disposition inline --content-id image_1000 --json
+```
+
+Do not mix the two metadata styles in one command. If an attachment value contains `;disposition=...` or `;content_id=...`, do not also pass `--disposition` or `--content-id`.
 ## 3. Recommended Agent Execution Loop
 For email support or CRM routing Agents, use this lifecycle:
 ```

@@ -286,7 +286,9 @@ Reply to an inbound message.
 | `--bcc <email>` | BCC address. Can be repeated. |
 | `--reply-to <email>` | Reply-To address. Can be repeated. |
 | `--preview-text <text>` | Email preview text. |
-| `--attachment <path>` | Attach local file. Can be repeated. Up to 10 files, 10MB total. |
+| `--attachment <path>` | Attach local file. Can be repeated. Requires `--disposition`. Up to 10 files, 10MB total after base64 encoding (about 7.5MB raw files). |
+| `--disposition <value>` | Attachment disposition: `attachment` or `inline`. Required when using `--attachment`. Can be repeated or provided once for all attachments. |
+| `--content-id <id>` | Content-ID for inline image attachments. Required when `--disposition inline` is used with an image attachment. |
 | `--sandbox` | Send in sandbox mode. |
 | `--json` | Output raw JSON. |
 
@@ -296,7 +298,8 @@ Example:
 engagelab-email-cli emails receiving reply 7e2b2de6-14c5-4ef1-a1e2-f4337e4606e2 \
   --subject "Re: Refund update" \
   --text "Thanks, we received your message." \
-  --attachment ./receipt.pdf
+  --attachment ./receipt.pdf \
+  --disposition attachment
 ```
 
 ### `emails send`
@@ -317,7 +320,9 @@ Send a new email.
 | `--bcc <email>` | BCC address. Can be repeated. |
 | `--reply-to <email>` | Reply-To address. Can be repeated. |
 | `--preview-text <text>` | Email preview text. |
-| `--attachment <path>` | Attach local file. Can be repeated. Up to 10 files, 10MB total. |
+| `--attachment <path>` | Attach local file. Can be repeated. Requires `--disposition`. Up to 10 files, 10MB total after base64 encoding (about 7.5MB raw files). |
+| `--disposition <value>` | Attachment disposition: `attachment` or `inline`. Required when using `--attachment`. Can be repeated or provided once for all attachments. |
+| `--content-id <id>` | Content-ID for inline image attachments. Required when `--disposition inline` is used with an image attachment. |
 | `--sandbox` | Send in sandbox mode. |
 | `--json` | Output raw JSON. |
 
@@ -330,9 +335,29 @@ engagelab-email-cli emails send \
   --to bob@example.com \
   --subject "Refund update" \
   --text "Your refund has been processed." \
-  --attachment ./receipt.pdf
+  --attachment ./receipt.pdf \
+  --disposition attachment
 ```
 
+Send HTML with an inline image attachment:
+
+```bash
+engagelab-email-cli emails send --mailbox-id 1001 --to alice@example.com --subject "Inline image" --html "<p>Logo <img src=cid:image_1000></p>" --attachment ./logo.png --disposition inline --content-id image_1000
+```
+
+Attachment metadata can be passed in two compatible ways. The recommended form binds metadata to each file path, which avoids ambiguity with multiple attachments:
+
+```bash
+engagelab-email-cli emails send --mailbox-id 1001 --to alice@example.com --subject "Mixed attachments" --html "<p>Logo <img src=cid:image_1000></p>" --attachment "./receipt.pdf;disposition=attachment" --attachment "./logo.png;disposition=inline;content_id=image_1000"
+```
+
+The legacy split-option form is also supported for compatibility:
+
+```bash
+engagelab-email-cli emails send --mailbox-id 1001 --to alice@example.com --subject "Inline image" --html "<p>Logo <img src=cid:image_1000></p>" --attachment ./logo.png --disposition inline --content-id image_1000
+```
+
+Do not mix inline attachment metadata (`path;disposition=...`) with `--disposition` or `--content-id` in the same command.
 Send HTML content from a file:
 
 ```bash

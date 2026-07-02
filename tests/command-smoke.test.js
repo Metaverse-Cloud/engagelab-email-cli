@@ -197,6 +197,8 @@ describe('CLI command smoke tests', () => {
     assert.doesNotMatch(result.stdout, /--body-file/);
     assert.match(result.stdout, /--text-file/);
     assert.match(result.stdout, /--attachment/);
+    assert.match(result.stdout, /--disposition/);
+    assert.match(result.stdout, /--content-id/);
   });
 
   it('rejects more than 10 attachments before sending', async () => {
@@ -253,6 +255,8 @@ describe('CLI command smoke tests', () => {
           'See attachment',
           '--attachment',
           largeAttachment,
+          '--disposition',
+          'attachment',
         ]);
         logCliFailure(result);
 
@@ -266,6 +270,132 @@ describe('CLI command smoke tests', () => {
   });
 
 
+  it('rejects attachments whose base64 payload exceeds 10MB before sending', async () => {
+    const dir = await mkdir(path.join(os.tmpdir(), 'engagelab-email-cli-attachment-encoded-' + Date.now()), {
+      recursive: true,
+    });
+    const encodedLargeAttachment = path.join(dir, 'encoded-large.bin');
+
+    try {
+      await writeFile(encodedLargeAttachment, Buffer.alloc(8 * 1024 * 1024));
+      await withApiServer(async ({ baseUrl, requests }) => {
+        const result = await runCliAllowFailure([
+          '--base-url',
+          baseUrl,
+          '--secret-key',
+          'sk_smoke',
+          'emails',
+          'send',
+          '--mailbox-id',
+          '12',
+          '--to',
+          'user@example.com',
+          '--subject',
+          'Hello',
+          '--text',
+          'See attachment',
+          '--attachment',
+          encodedLargeAttachment,
+          '--disposition',
+          'attachment',
+        ]);
+        logCliFailure(result);
+
+        assert.equal(result.code, 1);
+        assert.match(result.stderr, /Attachments encoded size cannot exceed 10MB/);
+        assert.equal(requests.length, 0);
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('requires disposition when sending attachments', async () => {
+    await withApiServer(async ({ baseUrl, requests }) => {
+      const result = await runCliAllowFailure([
+        '--base-url',
+        baseUrl,
+        '--secret-key',
+        'sk_smoke',
+        'emails',
+        'send',
+        '--mailbox-id',
+        '12',
+        '--to',
+        'user@example.com',
+        '--subject',
+        'Hello',
+        '--text',
+        'See attachment',
+        '--attachment',
+        'tests/fixtures/attachment.txt',
+      ]);
+      logCliFailure(result);
+
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, /--disposition is required when using --attachment/);
+      assert.equal(requests.length, 0);
+    });
+  });
+
+  it('requires content-id for inline image attachments', async () => {
+    await withApiServer(async ({ baseUrl, requests }) => {
+      const result = await runCliAllowFailure([
+        '--base-url',
+        baseUrl,
+        '--secret-key',
+        'sk_smoke',
+        'emails',
+        'send',
+        '--mailbox-id',
+        '12',
+        '--to',
+        'user@example.com',
+        '--subject',
+        'Hello',
+        '--html',
+        '<p><img src=cid:image_1000></p>',
+        '--attachment',
+        'tests/fixtures/inline.png',
+        '--disposition',
+        'inline',
+      ]);
+      logCliFailure(result);
+
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, /--content-id is required for inline image attachments/);
+      assert.equal(requests.length, 0);
+    });
+  });
+  it('rejects mixing attachment inline metadata with separate metadata options', async () => {
+    await withApiServer(async ({ baseUrl, requests }) => {
+      const result = await runCliAllowFailure([
+        '--base-url',
+        baseUrl,
+        '--secret-key',
+        'sk_smoke',
+        'emails',
+        'send',
+        '--mailbox-id',
+        '12',
+        '--to',
+        'user@example.com',
+        '--subject',
+        'Hello',
+        '--text',
+        'See attachment',
+        '--attachment',
+        'tests/fixtures/attachment.txt;disposition=attachment',
+        '--disposition',
+        'attachment',
+      ]);
+      logCliFailure(result);
+
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, /Do not mix attachment inline metadata/);
+      assert.equal(requests.length, 0);
+    });
+  });
   it('stops API commands when npm registry reports a newer version', async () => {
     registryVersion = '999.0.0';
     try {
@@ -553,6 +683,8 @@ function apiCommandScenarios() {
         'See attachment',
         '--attachment',
         'tests/fixtures/attachment.txt',
+        '--disposition',
+        'attachment',
       ],
       method: 'POST',
       path: '/api/email/agent/v1/mail/send',
@@ -564,9 +696,89 @@ function apiCommandScenarios() {
         attachments: [
           {
             filename: 'attachment.txt',
-            contentType: 'text/plain',
-            type: 'text/plain',
             content: 'c2FtcGxlIGF0dGFjaG1lbnQK',
+            disposition: 'attachment',
+          },
+        ],
+      },
+      output: /Sent/,
+      spinner: /Sending email/,
+    },
+    {
+      name: 'emails send with inline image attachment',
+      args: [
+        'emails',
+        'send',
+        '--mailbox-id',
+        '12',
+        '--to',
+        'user@example.com',
+        '--subject',
+        'Hello',
+        '--html',
+        '<p>Image <img src=cid:image_1000></p>',
+        '--attachment',
+        'tests/fixtures/inline.png',
+        '--disposition',
+        'inline',
+        '--content-id',
+        'image_1000',
+      ],
+      method: 'POST',
+      path: '/api/email/agent/v1/mail/send',
+      body: {
+        mailboxId: 12,
+        to: ['user@example.com'],
+        subject: 'Hello',
+        html: '<p>Image <img src=cid:image_1000></p>',
+        attachments: [
+          {
+            filename: 'inline.png',
+            content: 'aW5saW5lIGltYWdl',
+            disposition: 'inline',
+            content_id: 'image_1000',
+          },
+        ],
+      },
+      output: /Sent/,
+      spinner: /Sending email/,
+    },
+    {
+      name: 'emails send with attachment inline metadata',
+      args: [
+        'emails',
+        'send',
+        '--mailbox-id',
+        '12',
+        '--to',
+        'user@example.com',
+        '--subject',
+        'Hello',
+        '--html',
+        '<p>Image <img src=cid:image_1000></p>',
+        '--attachment',
+        'tests/fixtures/attachment.txt;disposition=attachment',
+        '--attachment',
+        'tests/fixtures/inline.png;disposition=inline;content_id=image_1000',
+      ],
+      method: 'POST',
+      path: '/api/email/agent/v1/mail/send',
+      body: {
+        mailboxId: 12,
+        to: ['user@example.com'],
+        subject: 'Hello',
+        html: '<p>Image <img src=cid:image_1000></p>',
+        attachments: [
+          {
+            filename: 'attachment.txt',
+            content: 'c2FtcGxlIGF0dGFjaG1lbnQK',
+            disposition: 'attachment',
+          },
+          {
+            filename: 'inline.png',
+            content: 'aW5saW5lIGltYWdl',
+            disposition: 'inline',
+            content_id: 'image_1000',
           },
         ],
       },
@@ -614,6 +826,8 @@ function apiCommandScenarios() {
         'Thanks',
         '--attachment',
         'tests/fixtures/attachment.txt',
+        '--disposition',
+        'attachment',
       ],
       method: 'POST',
       path: '/api/email/agent/v1/message/reply?messageUid=msg-1',
@@ -623,9 +837,8 @@ function apiCommandScenarios() {
         attachments: [
           {
             filename: 'attachment.txt',
-            contentType: 'text/plain',
-            type: 'text/plain',
             content: 'c2FtcGxlIGF0dGFjaG1lbnQK',
+            disposition: 'attachment',
           },
         ],
       },

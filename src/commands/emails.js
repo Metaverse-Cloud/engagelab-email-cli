@@ -7,33 +7,37 @@ import { SendingService } from '../services/sending-service.js';
 import { bodyOptions, createApiClient, queryFromOptions, withSpinner, writeResult } from './shared.js';
 import { validationError } from '../core/errors.js';
 
+const messageBodyFieldNames = [
+  'subject',
+  'text',
+  'html',
+  'textFile',
+  'htmlFile',
+  'previewText',
+];
+const addressBodyFieldNames = [
+  'cc',
+  'bcc',
+  'replyTo',
+];
+const attachmentBodyFieldNames = [
+  'attachment',
+  'disposition',
+  'contentId',
+];
 const sendBodyFieldNames = [
   'mailboxId',
   'from',
   'to',
-  'cc',
-  'bcc',
-  'replyTo',
-  'subject',
-  'text',
-  'html',
-  'textFile',
-  'htmlFile',
-  'previewText',
-  'attachment',
+  ...addressBodyFieldNames,
+  ...messageBodyFieldNames,
+  ...attachmentBodyFieldNames,
   'sandbox',
 ];
 const replyBodyFieldNames = [
-  'subject',
-  'text',
-  'html',
-  'textFile',
-  'htmlFile',
-  'cc',
-  'bcc',
-  'replyTo',
-  'previewText',
-  'attachment',
+  ...messageBodyFieldNames,
+  ...addressBodyFieldNames,
+  ...attachmentBodyFieldNames,
   'sandbox',
 ];
 const DEFAULT_LISTEN_LIMIT = 10;
@@ -47,8 +51,15 @@ export function registerEmailsCommands(program) {
   registerReceiving(emails);
 }
 
+function addAttachmentOptions(command) {
+  return command
+    .option('--attachment <path>', 'Attach local file', collect)
+    .option('--disposition <disposition>', 'Attachment disposition: attachment or inline', collect)
+    .option('--content-id <id>', 'Content-ID for inline image attachments', collect);
+}
+
 function registerSend(emails) {
-  emails
+  const send = emails
     .command('send')
     .description('Send a new email')
     .option('--mailbox-id <id>', 'Mailbox ID', parsePositiveInteger)
@@ -62,8 +73,9 @@ function registerSend(emails) {
     .option('--cc <email>', 'CC address', collect)
     .option('--bcc <email>', 'BCC address', collect)
     .option('--reply-to <email>', 'Reply-To address', collect)
-    .option('--preview-text <text>', 'Email preview text')
-    .option('--attachment <path>', 'Attach local file', collect)
+    .option('--preview-text <text>', 'Email preview text');
+
+  addAttachmentOptions(send)
     .option('--sandbox', 'Send in sandbox mode')
     .option('--json', 'Output raw JSON')
     .action(async (options, command) => {
@@ -122,7 +134,7 @@ function registerReceiving(emails) {
       await listenForMessages(service, options, command);
     });
 
-  receiving
+  const reply = receiving
     .command('reply')
     .description('Reply to an inbound message')
     .argument('<message-uid>', 'Message UID')
@@ -134,8 +146,9 @@ function registerReceiving(emails) {
     .option('--cc <email>', 'CC address', collect)
     .option('--bcc <email>', 'BCC address', collect)
     .option('--reply-to <email>', 'Reply-To address', collect)
-    .option('--preview-text <text>', 'Email preview text')
-    .option('--attachment <path>', 'Attach local file', collect)
+    .option('--preview-text <text>', 'Email preview text');
+
+  addAttachmentOptions(reply)
     .option('--sandbox', 'Send in sandbox mode')
     .option('--json', 'Output raw JSON')
     .action(async (messageUid, options, command) => {
