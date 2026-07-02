@@ -134,11 +134,11 @@ describe('CLI command smoke tests', () => {
       );
       logCliResult(saved);
       assert.match(stripAnsi(saved.stdout), /OK Config saved/);
-      assert.match(stripAnsi(saved.stdout), /baseUrl mapped from key region: https:\/\/www\.engagelab\.com/);
+      assert.match(stripAnsi(saved.stdout), /baseUrl mapped from key region: https:\/\/email\.api\.engagelab\.cc/);
 
       const listed = await runCli(['config', 'list'], { env });
       logCliResult(listed);
-      assert.match(stripAnsi(listed.stdout), /baseUrl: https:\/\/www\.engagelab\.com/);
+      assert.match(stripAnsi(listed.stdout), /baseUrl: https:\/\/email\.api\.engagelab\.cc/);
       assert.match(stripAnsi(listed.stdout), /secretKey: sk_sg_X\*\*\*\*/);
     } finally {
       await rm(dir, { recursive: true, force: true });

@@ -12,7 +12,7 @@ describe('resolveRuntimeConfig', () => {
       readConfig: async () => ({}),
     });
 
-    assert.equal(config.baseUrl, 'https://www.engagelab.com');
+    assert.equal(config.baseUrl, 'https://email.api.engagelab.cc');
     assert.equal(config.secretKey, 'sk_sg_XDfUt2_RXkCWdOMGk6_GecyhRKOZiKvNtGDQbBbgxtM');
   });
 
@@ -73,7 +73,7 @@ describe('resolveRuntimeConfig', () => {
       readConfig: async () => ({}),
     });
 
-    assert.equal(config.baseUrl, 'https://email-tr.engagelab.com');
+    assert.equal(config.baseUrl, 'https://emailapi-tr.engagelab.com');
   });
 
   it('throws a config error when no explicit baseUrl exists and the key region is unknown', async () => {
