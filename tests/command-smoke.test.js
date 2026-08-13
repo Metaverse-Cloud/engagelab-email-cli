@@ -190,7 +190,6 @@ describe('CLI command smoke tests', () => {
       );
       logCliResult(saved);
       assert.match(stripAnsi(saved.stdout), /OK Config saved/);
-      assert.match(stripAnsi(saved.stdout), /baseUrl mapped from key region: https:\/\/email\.api\.engagelab\.cc/);
 
       const listed = await runCli(['config', 'list'], { env });
       logCliResult(listed);

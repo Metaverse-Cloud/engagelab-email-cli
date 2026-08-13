@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { registerConfigCommands } from './commands/config.js';
 import { registerDebugCommands } from './commands/debug.js';
 import { registerEmailsCommands } from './commands/emails.js';
+import { registerLoginCommands } from './commands/login.js';
 import { registerMailboxCommands } from './commands/mailbox.js';
 import { registerThreadsCommands } from './commands/threads.js';
 import { formatCliErrorMessage, toCliError } from './core/errors.js';
@@ -21,6 +22,7 @@ export function configureProgram(program = new Command()) {
 
   registerConfigCommands(program);
   registerDebugCommands(program);
+  registerLoginCommands(program);
   registerMailboxCommands(program);
   registerThreadsCommands(program);
   registerEmailsCommands(program);

@@ -2,6 +2,7 @@ node_modules/
 .pnpm-store/
 dist/
 docs/
+md/
 tests-dev/
 .npm-package/
 *.tgz

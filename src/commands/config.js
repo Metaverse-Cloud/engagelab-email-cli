@@ -19,20 +19,8 @@ export function registerConfigCommands(program) {
       if (options.secretKey && !options.secretKey.startsWith('sk_')) {
         throw validationError('Secret Key must start with sk_');
       }
-      const current = await readConfig();
-      const merged = { ...current, ...stripUndefined(options) };
-      // When no explicit --base-url is provided, auto-map it from the secret key region.
-      if (!options.baseUrl) {
-        const inferred = inferBaseUrlFromSecretKey(merged.secretKey);
-        if (inferred) {
-          merged.baseUrl = inferred;
-        }
-      }
-      await writeConfig(merged);
+      await applyConfigValues({ baseUrl: options.baseUrl, secretKey: options.secretKey });
       process.stdout.write(`${ui.success('Config saved')}\n`);
-      if (!options.baseUrl && merged.baseUrl) {
-        process.stdout.write(`${ui.muted(`baseUrl mapped from key region: ${merged.baseUrl}`)}\n`);
-      }
     });
 
   config
@@ -53,6 +41,23 @@ export function registerConfigCommands(program) {
     });
 }
 
-function stripUndefined(value) {
-  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));
+// Apply credential changes to the local config. When a secret key is provided
+// without an explicit base URL, the base URL is mapped from the key's region.
+// Shared by `config set` and `login` so both stay in sync.
+export async function applyConfigValues({ baseUrl, secretKey } = {}) {
+  const current = await readConfig();
+  const merged = { ...current };
+  if (secretKey !== undefined) {
+    merged.secretKey = secretKey;
+  }
+  if (baseUrl !== undefined) {
+    merged.baseUrl = baseUrl;
+  } else if (secretKey !== undefined) {
+    const inferred = inferBaseUrlFromSecretKey(secretKey);
+    if (inferred) {
+      merged.baseUrl = inferred;
+    }
+  }
+  await writeConfig(merged);
+  return merged;
 }

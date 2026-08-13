@@ -31,6 +31,29 @@ npm install -g @engagelabemail/cli@latest
 
 ## Configuration
 
+### Sign In Through the Browser
+
+Run the login command to sign in on the EngageLab website, choose an organization, and authorize the CLI:
+
+```bash
+engagelab-email-cli login
+```
+
+The CLI opens your browser and waits for authorization for up to 15 minutes. After you authorize, it lists your
+regions, lets you pick one (or create one), generates a Secret Key for it, and saves the key and
+the matching API base URL in the local CLI config.
+
+If the browser cannot be opened automatically, copy the displayed URL into a browser. You can request this behavior
+directly with `--no-browser`:
+
+```bash
+engagelab-email-cli login --no-browser
+```
+
+Use `--json` for a machine-readable final result. Progress events and prompts are written to standard error so that
+standard output contains only the final result. You still choose an existing data center or create a new one
+interactively — the CLI never auto-selects.
+
 ### Manage Saved Configuration
 
 Use the `config` command group to save, inspect, or clear local credentials.
@@ -108,6 +131,15 @@ engagelab-email-cli emails receiving list --mailbox-id 12 --page-size 20 --json
 ```
 
 ## Commands
+
+### `login`
+
+Sign in through the EngageLab website and save the generated Secret Key.
+
+| Option | Description |
+| --- | --- |
+| `--no-browser` | Print the sign-in URL without opening a browser. |
+| `--json` | Write the final result as JSON. |
 
 ### `config set`
 

@@ -28,12 +28,35 @@ Use the EngageLab Email Skill when an Agent needs to:
 EngageLab uses **region-aware** Secret Keys in the format `sk_<dcPrefix>_<random>`. The Skill or CLI can infer the service region from the key when no explicit Base URL is configured.
 
 ### 1.2 Installation and Initialization
-Install the CLI package, then inject the Secret Key into the Agent runtime environment or save it locally with the CLI:
+Install the CLI package:
 
 ```bash
 npm install -g @engagelabemail/cli
-engagelab-email-cli config set --secret-key {user_key}
 ```
+
+The CLI authenticates with an EngageLab Email **Secret Key** (`sk_<region>_<random>`, e.g. `sk_sg_xxx`). Provision it with **`login` first, manual `config set` second**.
+
+**Recommended — `login` (browser sign-in; the CLI generates and saves the key):**
+```bash
+engagelab-email-cli login
+```
+Opens the EngageLab sign-in page in a browser. After you authorize, the CLI auto-selects your data center (the last-used one, or creates a default Singapore one), **generates a new Secret Key**, and saves it together with the region's API base URL to the local CLI config. You don't need to already have a key — `login` creates one for you.
+
+**Alternative — `config set --secret-key` (save a key you already have):**
+```bash
+engagelab-email-cli config set --secret-key sk_sg_xxx
+```
+Use this when you already obtained a Secret Key (e.g. from the EngageLab console) and just want to persist it.
+
+> Difference: `login` **creates** a key via the browser and saves it automatically; `config set` **saves a key you provide**. Both write to the same local config file, and the API base URL is derived from the key's region.
+
+**For Agent runtimes — `ENGAGELAB_EMAIL_SECRET_KEY` env var:**
+```bash
+export ENGAGELAB_EMAIL_SECRET_KEY=sk_sg_xxx
+```
+`ENGAGELAB_EMAIL_SECRET_KEY` is the environment variable the CLI reads on every run to get the Secret Key. Use it to inject the key into an Agent or container without writing a config file. (`ENGAGELAB_EMAIL_BASE_URL` likewise overrides the API base URL.)
+
+Precedence (highest first): per-command `--secret-key` flag → `ENGAGELAB_EMAIL_SECRET_KEY` env var → saved config file.
 
 ## 2. Core Skill Definitions
 
