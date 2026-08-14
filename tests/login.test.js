@@ -99,6 +99,7 @@ describe('browser login', () => {
 
     assert.equal(serviceId, 'new-svc');
     const { url, options } = capture.request;
+    assert.ok(url.startsWith(`${BASE}/api/email/user_dc/create.do?`));
     assert.equal(options.method, 'POST');
     assert.deepEqual(JSON.parse(options.body), { serviceName: 'sin', dcName: 'Singapore' });
     assert.equal(new URL(url).searchParams.get('codeVerifier'), 'verifier');

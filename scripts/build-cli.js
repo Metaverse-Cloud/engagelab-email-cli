@@ -2,7 +2,13 @@ import { build } from 'esbuild';
 import { readFile } from 'node:fs/promises';
 
 export async function buildCli() {
-  const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
+  const [packageSource, logoIcon, successIcon, failureIcon] = await Promise.all([
+    readFile('package.json', 'utf8'),
+    readFile('src/core/assets/logo.svg', 'utf8'),
+    readFile('src/core/assets/successful.svg', 'utf8'),
+    readFile('src/core/assets/fail.svg', 'utf8'),
+  ]);
+  const packageJson = JSON.parse(packageSource);
 
   return build({
     entryPoints: ['src/cli.js'],
@@ -16,6 +22,9 @@ export async function buildCli() {
     legalComments: 'none',
     define: {
       __PACKAGE_VERSION__: JSON.stringify(packageJson.version),
+      __LOGO_ICON__: JSON.stringify(logoIcon),
+      __SUCCESS_ICON__: JSON.stringify(successIcon),
+      __FAILURE_ICON__: JSON.stringify(failureIcon),
     },
   });
 }

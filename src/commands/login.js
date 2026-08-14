@@ -14,6 +14,7 @@ const DEFAULT_AUTHORIZE_URL = 'https://www.engagelab.com/accounts/signin?scene=c
 const TEST_AUTHORIZE_URL = 'https://engagelab-consoles.qa.jpushoa.com/accounts/signin?scene=cli';
 const DEFAULT_CLIENT_ID = 'agent-email-cli';
 const DATA_CENTER_PATH = '/api/email/user_dc/list.do';
+const DATA_CENTER_CREATE_PATH = '/api/email/user_dc/create.do';
 const SECRET_KEY_PATH = '/api/email/remoteApi.do';
 const LOGIN_TIMEOUT_MS = 15 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 30 * 1000;
@@ -189,11 +190,11 @@ export async function createDataCenter({
 }) {
   const request = {
     method: 'POST',
-    path: DATA_CENTER_PATH,
+    path: DATA_CENTER_CREATE_PATH,
     params: { business: 'Email', clientId, code, codeVerifier, serviceName, dcName },
   };
   emit({ event: 'create_data_center_request', request });
-  const url = withAuthParams(new URL(DATA_CENTER_PATH, base), { clientId, code, codeVerifier });
+  const url = withAuthParams(new URL(DATA_CENTER_CREATE_PATH, base), { clientId, code, codeVerifier });
   const response = await safeFetch(
     fetchImpl,
     url,
