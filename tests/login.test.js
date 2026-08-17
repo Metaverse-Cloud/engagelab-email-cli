@@ -101,8 +101,11 @@ describe('browser login', () => {
     const { url, options } = capture.request;
     assert.ok(url.startsWith(`${BASE}/api/email/user_dc/create.do?`));
     assert.equal(options.method, 'POST');
-    assert.deepEqual(JSON.parse(options.body), { serviceName: 'sin', dcName: 'Singapore' });
-    assert.equal(new URL(url).searchParams.get('codeVerifier'), 'verifier');
+    assert.equal(options.body, undefined);
+    const params = new URL(url).searchParams;
+    assert.equal(params.get('codeVerifier'), 'verifier');
+    assert.equal(params.get('serviceName'), 'sin');
+    assert.equal(params.get('dcName'), 'Singapore');
   });
 
   it('generates a Secret Key from the chosen service id', async () => {

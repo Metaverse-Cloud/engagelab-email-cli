@@ -39,9 +39,13 @@ Run the login command to sign in on the EngageLab website, choose an organizatio
 engagelab-email-cli login
 ```
 
-The CLI opens your browser and waits for authorization for up to 15 minutes. After you authorize, it lists your
-regions, lets you pick one (or create one), generates a Secret Key for it, and saves the key and
-the matching API base URL in the local CLI config.
+The CLI opens your browser and waits for authorization for up to 15 minutes. After you authorize, it selects your
+data center automatically — the last-used one, the first available one, or a newly created default Singapore one —
+generates a Secret Key for it, and saves the key in the local CLI config. The API base URL is not returned by the
+login endpoints: it is derived from the key's region prefix and saved at the same time.
+
+If no authorization arrives within 15 minutes, the CLI exits and the sign-in page in your browser is no longer
+valid. Close that page and run `login` again.
 
 If the browser cannot be opened automatically, copy the displayed URL into a browser. You can request this behavior
 directly with `--no-browser`:
@@ -50,9 +54,9 @@ directly with `--no-browser`:
 engagelab-email-cli login --no-browser
 ```
 
-Use `--json` for a machine-readable final result. Progress events and prompts are written to standard error so that
-standard output contains only the final result. You still choose an existing data center or create a new one
-interactively — the CLI never auto-selects.
+Use `--json` for a machine-readable final result. Progress events are written to standard error so that
+standard output contains only the final result. The data center is selected automatically; login never
+prompts interactively.
 
 ### Manage Saved Configuration
 
@@ -433,7 +437,7 @@ Exit codes:
 
 | Exit Code | Meaning |
 | --- | --- |
-| `1` | Parameter error or missing config |
+| `1` | Parameter error, missing config, or login timeout |
 | `2` | Authentication failure |
 | `3` | Resource not found |
 | `4` | Conflict or in-progress state |

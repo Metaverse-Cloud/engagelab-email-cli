@@ -40,7 +40,9 @@ The CLI authenticates with an EngageLab Email **Secret Key** (`sk_<region>_<rand
 ```bash
 engagelab-email-cli login
 ```
-Opens the EngageLab sign-in page in a browser. After you authorize, the CLI auto-selects your data center (the last-used one, or creates a default Singapore one), **generates a new Secret Key**, and saves it together with the region's API base URL to the local CLI config. You don't need to already have a key — `login` creates one for you.
+Opens the EngageLab sign-in page in a browser. After you authorize, the CLI auto-selects your data center (the last-used one, or creates a default Singapore one), **generates a new Secret Key**, and saves it to the local CLI config. The API base URL is derived from the key's region prefix, not returned by the login endpoints, and is saved at the same time. You don't need to already have a key — `login` creates one for you.
+
+`login` blocks until a human completes the browser authorization, waiting up to 15 minutes. If it times out (`login_timeout`, exit code `1`), the sign-in page in the browser is no longer valid — the correct recovery is to close that page and re-run `login`. Re-running `login` is always safe.
 
 **Alternative — `config set --secret-key` (save a key you already have):**
 ```bash
@@ -296,11 +298,13 @@ When executing CLI commands, the Agent must determine its error-handling path fr
 | Exit Code | Scenario |
 | --- | --- |
 | `0` | Call successful |
-| `1` | Parameter error or missing configuration |
+| `1` | Parameter error, missing configuration, or login timeout |
 | `2` | Authentication failed |
 | `3` | Resource does not exist |
 | `4` | Status conflict |
 | `5` | Server error or network error |
+
+A `login` timeout (`login_timeout`, exit code `1`) is the one exception to the no-retry rule above: re-running `login` is the correct and safe recovery.
 
 
 ## 7. Update Check

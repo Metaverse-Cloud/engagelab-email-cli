@@ -195,13 +195,17 @@ export async function createDataCenter({
   };
   emit({ event: 'create_data_center_request', request });
   const url = withAuthParams(new URL(DATA_CENTER_CREATE_PATH, base), { clientId, code, codeVerifier });
+  // The console .do endpoints read parameters the way request.getParameter does
+  // (query string / form data), never a JSON body — serviceName/dcName must ride
+  // on the URL like the auth params, or the server sees an empty name.
+  url.searchParams.set('serviceName', serviceName);
+  url.searchParams.set('dcName', dcName);
   const response = await safeFetch(
     fetchImpl,
     url,
     {
       method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-      body: JSON.stringify({ serviceName, dcName }),
+      headers: { Accept: 'application/json', 'Cache-Control': 'no-store' },
     },
     request,
   );

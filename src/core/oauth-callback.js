@@ -100,14 +100,19 @@ function handleCallback(request, response, expectedState, resolveCode, rejectCod
 
 function raceTimeout(promise, timeoutMs) {
   if (!timeoutMs) return promise;
+  // Derived from timeoutMs so the text never drifts if the wait window changes.
+  const waitMinutes = Math.max(1, Math.round(timeoutMs / 60000));
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () =>
         reject(
-          new CliError('Login timed out while waiting for the browser callback.', {
-            code: 'login_timeout',
-            exitCode: 1,
-          }),
+          new CliError(
+            `No authorization received within ${waitMinutes} minutes. The sign-in page in your browser is no longer valid — close it and run login again.`,
+            {
+              code: 'login_timeout',
+              exitCode: 1,
+            },
+          ),
         ),
       timeoutMs,
     );
