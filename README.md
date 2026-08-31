@@ -1,5 +1,7 @@
 # EngageLab Email CLI
 
+> Official EngageLab Email developer tooling.
+
 EngageLab Email CLI helps agents and developers work with inbound and outbound email from the command line.
 
 Use it to:
@@ -416,6 +418,16 @@ engagelab-email-cli emails receiving get <message-uid> --json
 
 `emails receiving listen --json` prints one message JSON object per line.
 
+## Anonymous Usage Metrics
+
+API commands add an anonymous installation ID and CLI version to request headers so EngageLab can measure distinct CLI installations. The ID is stored in the local CLI config under `telemetry`; no Secret Key, email content, or recipients are collected. The first successful API request also carries `X-EngageLab-SDK-Init: 1`.
+
+To disable these headers:
+
+```bash
+ENGAGELAB_EMAIL_TELEMETRY_DISABLED=1 engagelab-email-cli mailbox list
+```
+
 
 ## Errors
 
@@ -442,4 +454,3 @@ Exit codes:
 | `3` | Resource not found |
 | `4` | Conflict or in-progress state |
 | `5` | Server error or network error |
-

@@ -3,6 +3,7 @@ import semver from 'semver';
 import { resolveRuntimeConfig } from '../config/resolve-runtime-config.js';
 import { createHttpDebugHooks } from '../core/http-debug.js';
 import { handleOutdatedCli } from '../core/updater.js';
+import { loadCliTelemetry } from '../core/telemetry.js';
 import { compactObject } from '../core/validators.js';
 import { ui } from '../output/ui.js';
 import { CLI_VERSION } from '../version.js';
@@ -16,6 +17,8 @@ const UPDATE_CHECK_TIMEOUT_MS = 1500;
 export async function createApiClient(command) {
   await assertCliIsCurrent(command);
   const config = await resolveRuntimeConfig({ cliOptions: command.optsWithGlobals() });
+  const telemetry = await loadCliTelemetry();
+  const debugHooks = config.debugHttp ? createHttpDebugHooks() : {};
   return ky.extend({
     prefix: trimTrailingSlash(config.baseUrl),
     headers: {
@@ -23,7 +26,23 @@ export async function createApiClient(command) {
     },
     timeout: 30000,
     throwHttpErrors: false,
-    hooks: config.debugHttp ? createHttpDebugHooks() : undefined,
+    hooks: {
+      beforeRequest: [
+        ...(debugHooks.beforeRequest || []),
+        async ({ request }) => {
+          for (const [name, value] of Object.entries(telemetry.headers(CLI_VERSION))) {
+            request.headers.set(name, value);
+          }
+        },
+      ],
+      afterResponse: [
+        ...(debugHooks.afterResponse || []),
+        async ({ response }) => {
+          if (response.ok) await telemetry.markInitialized();
+          return response;
+        },
+      ],
+    },
   });
 }
 

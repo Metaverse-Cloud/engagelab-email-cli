@@ -95,6 +95,31 @@ describe('CLI command smoke tests', () => {
     });
   });
 
+  it('sends a stable anonymous device ID and marks only the first API request', async () => {
+    const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-telemetry-${Date.now()}`), {
+      recursive: true,
+    });
+    const env = { ...process.env, ENGAGELAB_EMAIL_CONFIG: path.join(dir, 'config.json') };
+
+    try {
+      await withApiServer(async ({ baseUrl, requests }) => {
+        await runCli(['config', 'set', '--base-url', baseUrl, '--secret-key', 'sk_local'], { env });
+        await runCli(['threads', 'get', 'thread-1'], { env });
+        await runCli(['threads', 'get', 'thread-1'], { env });
+
+        assert.equal(requests.length, 2);
+        assert.equal(requests[0].sdkName, 'engagelab-email-cli');
+        assert.match(requests[0].sdkVersion, /^1\.1\.0$/);
+        assert.match(requests[0].deviceId, /^[0-9a-f-]{36}$/);
+        assert.equal(requests[0].sdkInit, '1');
+        assert.equal(requests[1].deviceId, requests[0].deviceId);
+        assert.equal(requests[1].sdkInit, undefined);
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('runs config clear and removes saved local configuration', async () => {
     const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-config-clear-${Date.now()}`), {
       recursive: true,
@@ -912,6 +937,10 @@ async function withApiServer(callback) {
       method: request.method,
       path: request.url,
       authorization: request.headers.authorization,
+      sdkName: request.headers['x-engagelab-sdk-name'],
+      sdkVersion: request.headers['x-engagelab-sdk-version'],
+      deviceId: request.headers['x-engagelab-sdk-device-id'],
+      sdkInit: request.headers['x-engagelab-sdk-init'],
       body,
       statusCode: smokeResponse.statusCode,
     });
