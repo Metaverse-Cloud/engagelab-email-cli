@@ -109,7 +109,7 @@ describe('CLI command smoke tests', () => {
 
         assert.equal(requests.length, 2);
         assert.equal(requests[0].sdkName, 'engagelab-email-cli');
-        assert.match(requests[0].sdkVersion, /^1\.1\.0$/);
+        assert.equal(requests[0].sdkVersion, CLI_VERSION);
         assert.match(requests[0].deviceId, /^[0-9a-f-]{36}$/);
         assert.equal(requests[0].sdkInit, '1');
         assert.equal(requests[1].deviceId, requests[0].deviceId);
@@ -220,6 +220,29 @@ describe('CLI command smoke tests', () => {
       logCliResult(listed);
       assert.match(stripAnsi(listed.stdout), /baseUrl: https:\/\/email\.api\.engagelab\.cc/);
       assert.match(stripAnsi(listed.stdout), /secretKey: sk_sg_X\*\*\*\*/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('auto-saves the US baseUrl mapped from the secret key region', async () => {
+    const dir = await mkdir(path.join(os.tmpdir(), `engagelab-email-cli-config-us-${Date.now()}`), {
+      recursive: true,
+    });
+    const env = { ...process.env, ENGAGELAB_EMAIL_CONFIG: path.join(dir, 'config.json') };
+
+    try {
+      const saved = await runCli(
+        ['config', 'set', '--secret-key', 'sk_us_XDfUt2_RXkCWdOMGk6_GecyhRKOZiKvNtGDQbBbgxtM'],
+        { env },
+      );
+      logCliResult(saved);
+      assert.match(stripAnsi(saved.stdout), /OK Config saved/);
+
+      const listed = await runCli(['config', 'list'], { env });
+      logCliResult(listed);
+      assert.match(stripAnsi(listed.stdout), /baseUrl: https:\/\/emailapi-us\.engagelab\.com/);
+      assert.match(stripAnsi(listed.stdout), /secretKey: sk_us_X\*\*\*\*/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

@@ -16,6 +16,19 @@ describe('resolveRuntimeConfig', () => {
     assert.equal(config.secretKey, 'sk_sg_XDfUt2_RXkCWdOMGk6_GecyhRKOZiKvNtGDQbBbgxtM');
   });
 
+  it('infers the US baseUrl from the secret key region', async () => {
+    const config = await resolveRuntimeConfig({
+      cliOptions: {
+        secretKey: 'sk_us_XDfUt2_RXkCWdOMGk6_GecyhRKOZiKvNtGDQbBbgxtM',
+      },
+      env: {},
+      readConfig: async () => ({}),
+    });
+
+    assert.equal(config.baseUrl, 'https://emailapi-us.engagelab.com');
+    assert.equal(config.secretKey, 'sk_us_XDfUt2_RXkCWdOMGk6_GecyhRKOZiKvNtGDQbBbgxtM');
+  });
+
   it('prefers explicit baseUrl over the secret key region mapping', async () => {
     const config = await resolveRuntimeConfig({
       cliOptions: {

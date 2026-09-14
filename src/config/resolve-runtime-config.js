@@ -4,6 +4,7 @@ import { configError } from '../core/errors.js';
 const SECRET_KEY_BASE_URL_MAP = {
   sg: 'https://email.api.engagelab.cc',
   tr: 'https://emailapi-tr.engagelab.com',
+  us: 'https://emailapi-us.engagelab.com',
 };
 
 export async function resolveRuntimeConfig(options = {}) {
