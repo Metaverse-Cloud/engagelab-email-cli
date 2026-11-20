@@ -1,8 +1,13 @@
 # EngageLab Email CLI
 
+[![npm](https://img.shields.io/npm/v/@engagelabemail/cli)](https://www.npmjs.com/package/@engagelabemail/cli)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-green)](https://nodejs.org)
+
 > Official EngageLab Email developer tooling.
 
-EngageLab Email CLI helps agents and developers work with inbound and outbound email from the command line.
+EngageLab Email CLI helps agents and developers work with inbound and outbound email from the command line — give your AI agent a real mailbox it can poll, read, and reply from.
+
+Using Claude Desktop, Claude Code, or Cursor? Use the MCP server instead: [`@engagelabemail/mcp`](https://github.com/Metaverse-Cloud/engagelab-email-mcp).
 
 Use it to:
 
