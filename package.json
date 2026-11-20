@@ -1,7 +1,7 @@
 {
   "name": "@engagelabemail/cli",
-  "version": "1.2.0",
-  "description": "CLI for EngageLab Email Agent and Skill workflows",
+  "version": "1.2.1",
+  "description": "CLI for EngageLab Agent Email: send, receive and monitor email for AI agents from the command line",
   "type": "module",
   "main": "./dist/index.cjs",
   "exports": {
@@ -33,7 +33,12 @@
     "email",
     "cli",
     "agent",
-    "inbox"
+    "ai",
+    "ai-agents",
+    "inbox",
+    "send-email",
+    "email-api",
+    "developer-tools"
   ],
   "repository": {
     "type": "git",

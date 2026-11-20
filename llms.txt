@@ -1,0 +1,20 @@
+# EngageLab Email CLI
+
+> CLI for EngageLab Agent Email: give AI agents a real mailbox — list mailboxes, read threads, poll inbound messages, reply and send email from the command line.
+
+Install: `npm install -g @engagelabemail/cli`
+Binary: `engagelab-email-cli`
+Requires: Node.js >= 20; an EngageLab Secret Key (`sk_sg_` / `sk_tr_` prefix selects the API region); login via `engagelab-email-cli login`.
+
+Verified commands (see README for the full set):
+
+- `engagelab-email-cli emails receiving listen --after <cursor> --limit 10 --interval 5 --json` — poll new inbound mail; the returned cursor is a checkpoint your consumer owns
+- `engagelab-email-cli threads messages <thread-id> --include-content --limit 50 --json` — full thread context before drafting a reply
+- `engagelab-email-cli config` / `engagelab-email-cli login` — manage local config and Secret Key
+
+Related tools:
+
+- MCP server `@engagelabemail/mcp` (https://github.com/Metaverse-Cloud/engagelab-email-mcp) — for Model Context Protocol clients (Claude Desktop, Claude Code, Cursor)
+- Node.js SDK `engagelab-email` (https://github.com/Metaverse-Cloud/engagelab-email-node) — sending APIs for applications
+
+Docs: https://github.com/Metaverse-Cloud/engagelab-email-cli#readme
